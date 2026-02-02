@@ -10,7 +10,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace PlugINPRO
 {
     [Transaction(TransactionMode.Manual)]
-    public class RevIZMSetting : IExternalCommand
+    public class RevIZMCommand : IExternalCommand
     {
         public Result Execute(
             ExternalCommandData commandData,

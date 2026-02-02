@@ -36,7 +36,7 @@ namespace RevitHelloWorld
                 "RevisionButton",
                 "Проставление ревизий",
                 assemblyPath,
-                "PlugINPRO.RevIZMSetting"
+                "PlugINPRO.RevIZMCommand"
             );
 
             PushButton button = panel.AddItem(buttonData) as PushButton;
