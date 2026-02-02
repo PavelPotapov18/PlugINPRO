@@ -48,7 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
-    <Compile Include="HelloCommand.cs" />
+    <Compile Include="RevIZMCommand.cs" />
     <Compile Include="IFCByCoordinatesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
