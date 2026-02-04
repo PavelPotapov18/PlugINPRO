@@ -46,7 +46,7 @@ namespace PlugINPRO
                     {
                         if (fileNameLower.Contains(keyword))
                         {
-                            ifcFiles.Add(keyword);
+                            ifcFiles.Add(file);
                             break; //добавляем файл в список 1 раз
                         }
                     }
@@ -110,9 +110,21 @@ namespace PlugINPRO
                         }
                     }
 
+                    //Генерируем путь для сохранения RVT файла
+                    string rvtFileName = Path.GetFileNameWithoutExtension(ifcFile) + ".rvt";
+                    string rvtPath = Path.Combine(outputFolder, rvtFileName);
 
-                    TaskDialog.Show("Revit", $"Конвертация завершена! Файлы в директории {outputFolder} успешно обновлены");
-                    return Result.Succeeded;
+                    //Сохраняем как RVT файл
+                    SaveAsOptions saveAsOptions = new SaveAsOptions
+                    {
+                        OverwriteExistingFile = true
+                    };
+                    doc.SaveAs(rvtPath, saveAsOptions);
+
+                    //Закрываем документ
+                    doc.Close();
+
+                    TaskDialog.Show("Revit", $"Сохранен: {rvtPath}");
                 }
 
                 catch (Exception ex)
@@ -120,8 +132,9 @@ namespace PlugINPRO
                     TaskDialog.Show("Ошибка", ex.Message);
                     return Result.Failed;
                 }
-            
             }
+            TaskDialog.Show("Revit", $"Конвертация завершена! Файлы в директории {outputFolder} успешно обновлены");
+            return Result.Succeeded;
         }
     }
 }
