@@ -77,10 +77,35 @@ namespace RevitHelloWorld
             );
             IfcRvtButtonData.ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств";
             bimPanel.AddItem(IfcRvtButtonData);
+            // НОВЫЙ КОД ДЛЯ ПАНЕЛИ ОВ - НАЧАЛО
+            // ============================================
+            // ДОБАВЛЯЕМ ПАНЕЛЬ "ОВ" (Отопление и Вентиляция)
+            // ============================================
+            RibbonPanel ovPanel = application.CreateRibbonPanel("INPRO", "ОВ");
+
+            // Кнопка "Опоры воздуховодов"
+            PushButtonData ductSupportsButtonData = new PushButtonData(
+                "DuctSupports",
+                "Опоры\nвоздуховодов",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.DuctSupportsCommand"
+            );
+            ductSupportsButtonData.ToolTip = "Расстановка опор по траектории воздуховода с заданным шагом";
+            ovPanel.AddItem(ductSupportsButtonData);
+            // НОВЫЙ КОД ДЛЯ ПАНЕЛИ ОВ - КОНЕЦ
 
             return Result.Succeeded;
 
         }
+
+        public Result OnShutdown(UIControlledApplication application)
+        {
+            return Result.Succeeded;
+        }
+    }
+}
+
+
 
         //private void CreateGenplanPanel(UIControlledApplication app)
         //{
@@ -151,9 +176,3 @@ namespace RevitHelloWorld
         //    genplanPanel.AddItem(resetButtonData);
         //}
 
-        public Result OnShutdown(UIControlledApplication application)
-        {
-            return Result.Succeeded;
-        }
-    }
-}

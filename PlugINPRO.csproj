@@ -53,6 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
+    <Compile Include="DuctSupportCommand.cs" />
     <Compile Include="IFCRVTWindow.xaml.cs">
       <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
     </Compile>
