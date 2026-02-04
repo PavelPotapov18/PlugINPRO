@@ -41,6 +41,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -52,6 +53,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
+    <Compile Include="IFCRVTWindow.xaml.cs">
+      <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="IFCtoRVTCommand.cs" />
     <Compile Include="RevIZMCommand.cs" />
     <Compile Include="IFCByCoordinatesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -60,6 +65,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Include="IFCRVTWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="IFCWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

@@ -65,7 +65,18 @@ namespace RevitHelloWorld
             resetButtonData.ToolTip = "Установить все координаты в 0";
             genplanPanel.AddItem(resetButtonData);
 
-            //CreateGenplanPanel(application);
+            //Создаем панель BIM
+            RibbonPanel bimPanel = application.CreateRibbonPanel("INPRO", "BIM");
+
+            // Кнопка "IFC to RVT"
+            PushButtonData IfcRvtButtonData = new PushButtonData(
+                "IFСtoRVT",
+                "IFC в RVT",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.IFCtoRVTCommand"
+            );
+            IfcRvtButtonData.ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств";
+            bimPanel.AddItem(IfcRvtButtonData);
 
             return Result.Succeeded;
 
