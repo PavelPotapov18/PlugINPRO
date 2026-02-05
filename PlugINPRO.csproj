@@ -21,6 +21,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -53,6 +54,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
+    <Compile Include="DuctFittingSettingsWindow.xaml.cs">
+      <DependentUpon>DuctFittingSettingsWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="DuctSupportCommand.cs" />
     <Compile Include="IFCRVTWindow.xaml.cs">
       <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
@@ -66,6 +70,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Include="DuctFittingSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="IFCRVTWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

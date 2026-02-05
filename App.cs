@@ -1,4 +1,5 @@
-﻿using Autodesk.Revit.UI;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using System;
 using System.Reflection;
 
@@ -10,9 +11,25 @@ namespace RevitHelloWorld
         public static TextBox txtY;
         public static TextBox txtZ;
 
+        // Статическая переменная для хранения выбранного семейства
+        public static FamilySymbol SelectedSupportFamily { get; set; }
+
+        // ============================================
+        // ДОБАВЛЕННЫЕ ПОЛЯ ДЛЯ ХРАНЕНИЯ РАЗМЕРОВ ВОЗДУХОВОДА
+        // ============================================
+
+        // Последние размеры воздуховода (для информации)
+        public static double LastDuctWidth { get; set; }
+        public static double LastDuctHeight { get; set; }
+        public static double LastDuctDiameter { get; set; }
+        public static bool LastDuctWasRound { get; set; }
+
+        // Можно также хранить строковую информацию для отображения
+        public static string LastDuctInfo { get; set; }
+
         public Result OnStartup(UIControlledApplication application)
         {
-            
+
             // Пытаемся создать вкладку (если уже есть — Revit кинет исключение)
             try
             {
@@ -42,7 +59,7 @@ namespace RevitHelloWorld
 
             //Создаем панель ГЕНПЛАН
             RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "ГЕНПЛАН");
-            
+
             // --- КНОПКИ ---
 
             // Кнопка "IFC по координатам"
@@ -77,20 +94,21 @@ namespace RevitHelloWorld
             );
             IfcRvtButtonData.ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств";
             bimPanel.AddItem(IfcRvtButtonData);
+
             // НОВЫЙ КОД ДЛЯ ПАНЕЛИ ОВ - НАЧАЛО
             // ============================================
             // ДОБАВЛЯЕМ ПАНЕЛЬ "ОВ" (Отопление и Вентиляция)
             // ============================================
             RibbonPanel ovPanel = application.CreateRibbonPanel("INPRO", "ОВ");
 
-            // Кнопка "Опоры воздуховодов"
+            // Единственная кнопка "Опоры воздуховодов" - все в одном окне
             PushButtonData ductSupportsButtonData = new PushButtonData(
                 "DuctSupports",
                 "Опоры\nвоздуховодов",
                 Assembly.GetExecutingAssembly().Location,
                 "PlugINPRO.DuctSupportsCommand"
             );
-            ductSupportsButtonData.ToolTip = "Расстановка опор по траектории воздуховода с заданным шагом";
+            ductSupportsButtonData.ToolTip = "Расстановка опор по траектории воздуховода\nВключает выбор крепления и шага";
             ovPanel.AddItem(ductSupportsButtonData);
             // НОВЫЙ КОД ДЛЯ ПАНЕЛИ ОВ - КОНЕЦ
 
@@ -104,75 +122,3 @@ namespace RevitHelloWorld
         }
     }
 }
-
-
-
-        //private void CreateGenplanPanel(UIControlledApplication app)
-        //{
-        //    // Создаем панель ГЕНПЛАН
-        //    RibbonPanel genplanPanel = app.CreateRibbonPanel("INPRO", "ГЕНПЛАН");
-
-        //    // --- ТЕКСТОВЫЕ ПОЛЯ ДЛЯ КООРДИНАТ ---
-
-        //    // Поле для X
-        //    TextBoxData txtXData = new TextBoxData("txtX");
-        //    txtXData.Name = "X (мм)";
-        //    txtXData.ToolTip = "Координата X в миллиметрах";
-        //    txtX = genplanPanel.AddItem(txtXData) as TextBox;
-        //    if (txtX != null)
-        //    {
-        //        txtX.Value = "0"; // Это строка, все правильно
-        //        txtX.ToolTip = "Координата X в мм";
-        //        txtX.Width = 80;
-        //    }
-            
-        //    // Поле для Y
-        //    TextBoxData txtYData = new TextBoxData("txtY");
-        //    txtYData.Name = "Y (мм)";
-        //    txtYData.ToolTip = "Координата Y в миллиметрах";
-        //    txtY = genplanPanel.AddItem(txtYData) as TextBox;
-        //    if (txtY != null)
-        //    {
-        //        txtY.Value = "0";
-        //        txtY.ToolTip = "Координата Y в мм";
-        //        txtY.Width = 80;
-        //    }
-
-        //    // Поле для Z
-        //    TextBoxData txtZData = new TextBoxData("txtZ");
-        //    txtZData.Name = "Z (мм)";
-        //    txtZData.ToolTip = "Координата Z в миллиметрах";
-        //    txtZ = genplanPanel.AddItem(txtZData) as TextBox;
-        //    if (txtZ != null)
-        //    {
-        //        txtZ.Value = "0";
-        //        txtZ.ToolTip = "Координата Z в мм";
-        //        txtZ.Width = 80;
-        //    }
-
-        //    // Разделитель
-        //    genplanPanel.AddSeparator();
-
-        //    // --- КНОПКИ ---
-
-        //    // Кнопка "IFC по координатам"
-        //    PushButtonData ifcButtonData = new PushButtonData(
-        //        "IFCByCoordinates",
-        //        "IFC по\nкоординатам",
-        //        Assembly.GetExecutingAssembly().Location,
-        //        "PlugINPRO.IFCByCoordinatesCommand"
-        //    );
-        //    ifcButtonData.ToolTip = "Переместить выбранный IFC на введенные координаты";
-        //    genplanPanel.AddItem(ifcButtonData);
-
-        //    // Кнопка "Сбросить"
-        //    PushButtonData resetButtonData = new PushButtonData(
-        //        "ResetCoordinates",
-        //        "Сбросить",
-        //        Assembly.GetExecutingAssembly().Location,
-        //        "PlugINPRO.ResetCoordinatesCommand"
-        //    );
-        //    resetButtonData.ToolTip = "Установить все координаты в 0";
-        //    genplanPanel.AddItem(resetButtonData);
-        //}
-
