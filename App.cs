@@ -1,18 +1,18 @@
 ﻿using Autodesk.Revit.UI;
 using System;
+using System.IO;
 using System.Reflection;
+using System.Windows.Media.Imaging;
+
 
 namespace RevitHelloWorld
 {
     public class App : IExternalApplication
     {
-        public static TextBox txtX;
-        public static TextBox txtY;
-        public static TextBox txtZ;
 
         public Result OnStartup(UIControlledApplication application)
         {
-            
+
             // Пытаемся создать вкладку (если уже есть — Revit кинет исключение)
             try
             {
@@ -24,46 +24,64 @@ namespace RevitHelloWorld
             }
 
             // Создаём панель "Общие инструменты" на вкладке
-            RibbonPanel panel = application.CreateRibbonPanel("INPRO", "Общие инструменты");
+            RibbonPanel commonPanel = application.CreateRibbonPanel("INPRO", "Общие инструменты");
 
             // Путь к текущей DLL
             string assemblyPath = Assembly.GetExecutingAssembly().Location;
 
             // Кнопка "Проставление ревизий"
-            PushButtonData buttonData = new PushButtonData(
+            PushButtonData revButtonData = new PushButtonData(
                 "RevisionButton",
-                "Проставление ревизий",
+                "Ревизии\nи ИЗМы",
                 assemblyPath,
                 "PlugINPRO.RevIZMCommand"
             );
+            revButtonData.LargeImage = LoadImage("PlugINPRO.Resources.R00_48.png");
+            revButtonData.Image = LoadImage("PlugINPRO.Resources.R00_32.png");
+            revButtonData.ToolTip = "Проставление ревизий и ИЗМов в штампе";
 
-            PushButton button = panel.AddItem(buttonData) as PushButton;
-            button.ToolTip = "Проставление ревизий и ИЗМов в штампе";
+            PushButton revButton = commonPanel.AddItem(revButtonData) as PushButton;
+            
 
             //Создаем панель ГЕНПЛАН
-            RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "ГЕНПЛАН");
-            
-            // --- КНОПКИ ---
+            RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "Генплан");
 
             // Кнопка "IFC по координатам"
             PushButtonData ifcButtonData = new PushButtonData(
                 "IFCByCoordinates",
                 "IFC по\nкоординатам",
-                Assembly.GetExecutingAssembly().Location,
+                assemblyPath,
                 "PlugINPRO.IFCByCoordinatesCommand"
             );
+            ifcButtonData.LargeImage = LoadImage("PlugINPRO.Resources.ifc64.png");
+            ifcButtonData.Image = LoadImage("PlugINPRO.Resources.ifc32.png");
             ifcButtonData.ToolTip = "Переместить выбранный IFC на введенные координаты";
-            genplanPanel.AddItem(ifcButtonData);
+            
 
             // Кнопка "Сбросить"
             PushButtonData resetButtonData = new PushButtonData(
                 "ResetCoordinates",
                 "Сбросить",
-                Assembly.GetExecutingAssembly().Location,
+                assemblyPath,
                 "PlugINPRO.ResetCoordinatesCommand"
             );
+            resetButtonData.LargeImage = LoadImage("PlugINPRO.Resources.ifc64.png");
+            resetButtonData.Image = LoadImage("PlugINPRO.Resources.ifc32.png");
             resetButtonData.ToolTip = "Установить все координаты в 0";
-            genplanPanel.AddItem(resetButtonData);
+
+            
+            //Кнопка - контейнер "IFC"(открывает список команд по работе с IFC)
+            PulldownButtonData IfcPullData = new PulldownButtonData("IFCTools", "IFC");
+            IfcPullData.LargeImage = LoadImage("PlugINPRO.Resources.ifc48.png");
+            IfcPullData.ToolTip = "Работа по переносу фалов IFC";
+
+            PulldownButton IfcPullButton = genplanPanel.AddItem(IfcPullData) as PulldownButton;
+
+            IfcPullButton.AddPushButton(ifcButtonData);
+            IfcPullButton.AddPushButton(resetButtonData);
+            
+
+
 
             //Создаем панель BIM
             RibbonPanel bimPanel = application.CreateRibbonPanel("INPRO", "BIM");
@@ -72,9 +90,10 @@ namespace RevitHelloWorld
             PushButtonData IfcRvtButtonData = new PushButtonData(
                 "IFСtoRVT",
                 "IFC в RVT",
-                Assembly.GetExecutingAssembly().Location,
+                assemblyPath,
                 "PlugINPRO.IFCtoRVTCommand"
             );
+            IfcRvtButtonData.LargeImage = LoadImage("PlugINPRO.Resources.ifc48.png");
             IfcRvtButtonData.ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств";
             bimPanel.AddItem(IfcRvtButtonData);
 
@@ -82,78 +101,30 @@ namespace RevitHelloWorld
 
         }
 
-        //private void CreateGenplanPanel(UIControlledApplication app)
-        //{
-        //    // Создаем панель ГЕНПЛАН
-        //    RibbonPanel genplanPanel = app.CreateRibbonPanel("INPRO", "ГЕНПЛАН");
-
-        //    // --- ТЕКСТОВЫЕ ПОЛЯ ДЛЯ КООРДИНАТ ---
-
-        //    // Поле для X
-        //    TextBoxData txtXData = new TextBoxData("txtX");
-        //    txtXData.Name = "X (мм)";
-        //    txtXData.ToolTip = "Координата X в миллиметрах";
-        //    txtX = genplanPanel.AddItem(txtXData) as TextBox;
-        //    if (txtX != null)
-        //    {
-        //        txtX.Value = "0"; // Это строка, все правильно
-        //        txtX.ToolTip = "Координата X в мм";
-        //        txtX.Width = 80;
-        //    }
-            
-        //    // Поле для Y
-        //    TextBoxData txtYData = new TextBoxData("txtY");
-        //    txtYData.Name = "Y (мм)";
-        //    txtYData.ToolTip = "Координата Y в миллиметрах";
-        //    txtY = genplanPanel.AddItem(txtYData) as TextBox;
-        //    if (txtY != null)
-        //    {
-        //        txtY.Value = "0";
-        //        txtY.ToolTip = "Координата Y в мм";
-        //        txtY.Width = 80;
-        //    }
-
-        //    // Поле для Z
-        //    TextBoxData txtZData = new TextBoxData("txtZ");
-        //    txtZData.Name = "Z (мм)";
-        //    txtZData.ToolTip = "Координата Z в миллиметрах";
-        //    txtZ = genplanPanel.AddItem(txtZData) as TextBox;
-        //    if (txtZ != null)
-        //    {
-        //        txtZ.Value = "0";
-        //        txtZ.ToolTip = "Координата Z в мм";
-        //        txtZ.Width = 80;
-        //    }
-
-        //    // Разделитель
-        //    genplanPanel.AddSeparator();
-
-        //    // --- КНОПКИ ---
-
-        //    // Кнопка "IFC по координатам"
-        //    PushButtonData ifcButtonData = new PushButtonData(
-        //        "IFCByCoordinates",
-        //        "IFC по\nкоординатам",
-        //        Assembly.GetExecutingAssembly().Location,
-        //        "PlugINPRO.IFCByCoordinatesCommand"
-        //    );
-        //    ifcButtonData.ToolTip = "Переместить выбранный IFC на введенные координаты";
-        //    genplanPanel.AddItem(ifcButtonData);
-
-        //    // Кнопка "Сбросить"
-        //    PushButtonData resetButtonData = new PushButtonData(
-        //        "ResetCoordinates",
-        //        "Сбросить",
-        //        Assembly.GetExecutingAssembly().Location,
-        //        "PlugINPRO.ResetCoordinatesCommand"
-        //    );
-        //    resetButtonData.ToolTip = "Установить все координаты в 0";
-        //    genplanPanel.AddItem(resetButtonData);
-        //}
-
         public Result OnShutdown(UIControlledApplication application)
         {
             return Result.Succeeded;
         }
+    
+        private BitmapImage LoadImage(string resourceName)
+            {
+                Assembly assembly = Assembly.GetExecutingAssembly();
+
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream == null)
+                        return null;
+
+                    BitmapImage image = new BitmapImage();
+                    image.BeginInit();
+                    image.StreamSource = stream;
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.EndInit();
+                    image.Freeze();
+
+                    return image;
+                }
+            }
+
     }
 }

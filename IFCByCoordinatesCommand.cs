@@ -213,7 +213,7 @@ namespace PlugINPRO
         {
             try
             {
-                const double MM_TO_FT = 0.00328084;
+                const double MM_TO_FT = 0.0032808398950131;
                 double x_abs = x_mm * MM_TO_FT;
                 double y_abs = y_mm * MM_TO_FT;
                 double z_abs = z_mm * MM_TO_FT;
