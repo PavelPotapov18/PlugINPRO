@@ -57,6 +57,10 @@
       <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="IFCtoRVTCommand.cs" />
+    <Compile Include="InfoCommand.cs" />
+    <Compile Include="InfoWindow.xaml.cs">
+      <DependentUpon>InfoWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="RevIZMCommand.cs" />
     <Compile Include="IFCByCoordinatesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -70,6 +74,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="IFCWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="InfoWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -89,6 +97,23 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\R00_32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\ifc16.png" />
+    <EmbeddedResource Include="Resources\R00_16.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\INPRO128.png" />
+    <Resource Include="Resources\INPRO256.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\INPRO32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\INPRO.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\info32.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
