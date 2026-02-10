@@ -53,30 +53,48 @@ namespace RevitHelloWorld
                 "Info",
                 assemblyPath,
                 "PlugINPRO.InfoCommand"
-                );
-            logoButtonData.LargeImage = LoadImage("PlugINPRO.Resources.info32.png");
-            logoButtonData.ToolTip = "PlugINPRO v1.0";
-            logoButtonData.LongDescription = "О плагине";
+                )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.info32.png"),
+                ToolTip = "PlugINPRO v1.0",
+                LongDescription = "О плагине"
+            };
 
             infoPanel.AddItem(logoButtonData);
 
 
             // Создаём панель "Общие инструменты" на вкладке
             RibbonPanel commonPanel = application.CreateRibbonPanel("INPRO", "Общие инструменты");
-            
+
             // Кнопка "Проставление ревизий"
             PushButtonData revButtonData = new PushButtonData(
                 "RevisionButton",
                 "Ревизии\nи ИЗМы",
                 assemblyPath,
                 "PlugINPRO.RevIZMCommand"
-            );
-            revButtonData.LargeImage = LoadImage("PlugINPRO.Resources.R00_32.png");
-            revButtonData.Image = LoadImage("PlugINPRO.Resources.R00_16.png");
-            revButtonData.ToolTip = "Проставление ревизий и ИЗМов в штампе";
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.R00_32.png"),
+                Image = LoadImage("PlugINPRO.Resources.R00_16.png"),
+                ToolTip = "Проставление ревизий и ИЗМов в штампе"
+            };
 
             commonPanel.AddItem(revButtonData);
-            
+
+            // Кнопка "Отключение осей и уровней связанных файлов"
+            PushButtonData gridsButtonData = new PushButtonData(
+                "GridsButton",
+                "Оси/Уровни\nоткл.",
+                assemblyPath,
+                "PlugINPRO.GridsOffCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.grids32.png"),
+                Image = LoadImage("PlugINPRO.Resources.grids16.png"),
+                ToolTip = "Отключение осей и уровней в связанных файлах"
+            };
+
+            commonPanel.AddItem(gridsButtonData);
 
             //Создаем панель ГЕНПЛАН
             RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "Генплан");
@@ -87,11 +105,13 @@ namespace RevitHelloWorld
                 "IFC по\nкоординатам",
                 assemblyPath,
                 "PlugINPRO.IFCByCoordinatesCommand"
-            );
-            ifcButtonData.LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png");
-            ifcButtonData.Image = LoadImage("PlugINPRO.Resources.ifc16.png");
-            ifcButtonData.ToolTip = "Переместить выбранный IFC на введенные координаты";
-            
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
+                ToolTip = "Переместить выбранный IFC на введенные координаты"
+            };
+
 
             // Кнопка "Сбросить"
             PushButtonData resetButtonData = new PushButtonData(
@@ -99,25 +119,26 @@ namespace RevitHelloWorld
                 "Сбросить",
                 assemblyPath,
                 "PlugINPRO.ResetCoordinatesCommand"
-            );
-            resetButtonData.LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png");
-            resetButtonData.Image = LoadImage("PlugINPRO.Resources.ifc16.png");
-            resetButtonData.ToolTip = "Установить все координаты в 0";
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
+                ToolTip = "Установить все координаты в 0"
+            };
 
-            
+
             //Кнопка - контейнер "IFC"(открывает список команд по работе с IFC)
-            PulldownButtonData IfcPullData = new PulldownButtonData("IFCTools", "IFC");
-            IfcPullData.LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png");
-            IfcPullData.ToolTip = "Работа по переносу фалов IFC";
+            PulldownButtonData IfcPullData = new PulldownButtonData("IFCTools", "IFC")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
+                ToolTip = "Работа по переносу фалов IFC"
+            };
 
             PulldownButton IfcPullButton = genplanPanel.AddItem(IfcPullData) as PulldownButton;
 
             IfcPullButton.AddPushButton(ifcButtonData);
             IfcPullButton.AddPushButton(resetButtonData);
             
-
-
-
             //Создаем панель BIM
             RibbonPanel bimPanel = application.CreateRibbonPanel("INPRO", "BIM");
 
@@ -127,10 +148,13 @@ namespace RevitHelloWorld
                 "IFC в RVT",
                 assemblyPath,
                 "PlugINPRO.IFCtoRVTCommand"
-            );
-            IfcRvtButtonData.LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png");
-            IfcRvtButtonData.Image = LoadImage("PlugINPRO.Resources.ifc16.png");
-            IfcRvtButtonData.ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств";
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
+                ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств"
+            };
+            
             bimPanel.AddItem(IfcRvtButtonData);
 
             // ============================================
@@ -144,8 +168,12 @@ namespace RevitHelloWorld
                 "Опоры\nвоздуховодов",
                 Assembly.GetExecutingAssembly().Location,
                 "PlugINPRO.DuctSupportsCommand"
-            );
-            ductSupportsButtonData.ToolTip = "Расстановка опор по траектории воздуховода\nВключает выбор крепления и шага";
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.DuctFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.DuctFitting16.png"),
+                ToolTip = "Расстановка опор по траектории воздуховода\nВключает выбор крепления и шага"
+            };
             ovPanel.AddItem(ductSupportsButtonData);
             // ============================================
 
@@ -160,8 +188,13 @@ namespace RevitHelloWorld
                 "Опоры\nлотков",
                 Assembly.GetExecutingAssembly().Location,
                 "PlugINPRO.CableTraySupportsCommand"
-            );
-            cableTraySupportsButtonData.ToolTip = "Расстановка опор по траектории кабельного лотка\nВключает выбор крепления и шага";
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.CableTrayFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.CableTrayFitting16.png"),
+                ToolTip = "Расстановка опор по траектории кабельного лотка\nВключает выбор крепления и шага"
+            };
+            
             eomPanel.AddItem(cableTraySupportsButtonData);
             // ============================================
 
@@ -176,8 +209,13 @@ namespace RevitHelloWorld
                 "Опоры\nтрубопроводов",
                 Assembly.GetExecutingAssembly().Location,
                 "PlugINPRO.PipeSupportsCommand"
-            );
-            pipeSupportsButtonData.ToolTip = "Расстановка опор по траектории трубопровода\nВключает выбор крепления и шага";
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.PipeFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.PipeFitting16.png"),
+                ToolTip = "Расстановка опор по траектории трубопровода\nВключает выбор крепления и шага"
+            };
+            
             vkPanel.AddItem(pipeSupportsButtonData);
             // ============================================
 

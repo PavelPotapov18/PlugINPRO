@@ -62,6 +62,10 @@
       <DependentUpon>DuctFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="DuctSupportCommand.cs" />
+    <Compile Include="GridsOffCommand.cs" />
+    <Compile Include="GridsOffWindow.xaml.cs">
+      <DependentUpon>GridsOffWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="IFCRVTWindow.xaml.cs">
       <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
     </Compile>
@@ -87,6 +91,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="DuctFittingSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="GridsOffWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -128,17 +136,24 @@
     <EmbeddedResource Include="Resources\R00_16.png" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Resources\INPRO128.png" />
-    <Resource Include="Resources\INPRO256.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\INPRO32.png" />
-  </ItemGroup>
-  <ItemGroup>
     <Resource Include="Resources\INPRO.png" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\info32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\grids32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\grids16.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\CableTrayFitting16.png" />
+    <EmbeddedResource Include="Resources\CableTrayFitting32.png" />
+    <EmbeddedResource Include="Resources\DuctFitting16.png" />
+    <EmbeddedResource Include="Resources\DuctFitting32.png" />
+    <EmbeddedResource Include="Resources\PipeFitting16.png" />
+    <EmbeddedResource Include="Resources\PipeFitting32.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
