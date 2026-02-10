@@ -54,6 +54,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
+    <Compile Include="CableTrayFittingSettingsWindow.xaml.cs">
+      <DependentUpon>CableTrayFittingSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="CableTraySupportCommand.cs" />
     <Compile Include="DuctFittingSettingsWindow.xaml.cs">
       <DependentUpon>DuctFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
@@ -62,6 +66,10 @@
       <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="IFCtoRVTCommand.cs" />
+    <Compile Include="PipeFittingSettingsWindow.xaml.cs">
+      <DependentUpon>PipeFittingSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="PipeSupportCommand.cs" />
     <Compile Include="RevIZMCommand.cs" />
     <Compile Include="IFCByCoordinatesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -70,6 +78,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Include="CableTrayFittingSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="DuctFittingSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -79,6 +91,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="IFCWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="PipeFittingSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

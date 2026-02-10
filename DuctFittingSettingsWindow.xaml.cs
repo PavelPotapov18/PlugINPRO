@@ -45,6 +45,7 @@ namespace PlugINPRO
             }
         }
 
+        // В методе LoadAvailableFamilies() замените на:
         private void LoadAvailableFamilies()
         {
             try
@@ -56,6 +57,15 @@ namespace PlugINPRO
                     .WhereElementIsElementType();
 
                 _availableFamilies = collector.Cast<FamilySymbol>().ToList();
+
+                // ФИЛЬТР: оставляем только те, в названии которых есть "Крепление"
+                _availableFamilies = _availableFamilies
+                    .Where(fs =>
+                        fs.Family.Name.IndexOf("крепление", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        fs.Name.IndexOf("крепление", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        fs.Family.Name.IndexOf("опора", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        fs.Name.IndexOf("опора", StringComparison.OrdinalIgnoreCase) >= 0)
+                    .ToList();
 
                 // Если нашли семейства
                 if (_availableFamilies.Count > 0)
@@ -72,7 +82,9 @@ namespace PlugINPRO
                 }
                 else
                 {
-                    tbInfo.Text = "В проекте не найдены семейства креплений.\nЗагрузите семейства в категории DUCT FITTINGS.";
+                    tbInfo.Text = "В проекте не найдены семейства креплений для воздуховодов.\n" +
+                                 "Загрузите семейства в категории DUCT FITTINGS\n" +
+                                 "с названием, содержащим 'Крепление' или 'Опора'.";
                     rbSelectNewFamily.IsEnabled = false;
                     rbPreviousFamily.IsChecked = true;
                 }
