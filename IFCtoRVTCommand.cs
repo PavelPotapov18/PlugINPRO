@@ -1,11 +1,12 @@
-﻿using Autodesk.Revit.Attributes;
+﻿using Autodesk.Revit.ApplicationServices;
+using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using Autodesk.Revit.ApplicationServices;
 using System.IO;
+using System.Linq;
+using System.Windows.Input;
 
 
 namespace PlugINPRO
@@ -42,14 +43,18 @@ namespace PlugINPRO
                 foreach (string file in Directory.GetFiles(inputFolder, "*.ifc"))
                 {
                     string fileNameLower = Path.GetFileName(file).ToLower();
-                    foreach (string keyword in keywords)
+                    if(fileNameLower.EndsWith(".ifc"))
                     {
-                        if (fileNameLower.Contains(keyword))
-                        {
-                            ifcFiles.Add(file);
-                            break; //добавляем файл в список 1 раз
+                        foreach(string keyword in keywords)
+                    {
+                            if (fileNameLower.Contains(keyword))
+                            {
+                                ifcFiles.Add(Path.Combine(inputFolder, Path.GetFileName(file)));
+                                break; //добавляем файл в список 1 раз
+                            }
                         }
                     }
+                    
                 }
             }
 
@@ -60,7 +65,7 @@ namespace PlugINPRO
                     string ifcFile = Path.GetFileName(file);
 
                     //Открываем IFC в Revit без опций
-                    Document doc = app.OpenIFCDocument(ifcFile);
+                    Document doc = app.OpenIFCDocument(file);
 
                     //Получаем материал "ADSK_Бетон_Железобетон" и его штриховку
                     string materialName = "ADSK_Бетон_Железобетон";
@@ -107,6 +112,19 @@ namespace PlugINPRO
                         {
                             if (family.Name.Contains(kw))
                                 familiesToDelete.Add(family.Id);
+                        }
+                    }
+
+                    if(familiesToDelete.Count > 0)
+                    {
+                        using (Transaction t = new Transaction(doc, "Удаление семейств"))
+                        {
+                            t.Start();
+                            foreach(ElementId famId in familiesToDelete)
+                            {
+                                doc.Delete(famId);
+                            }
+                            t.Commit();
                         }
                     }
 
