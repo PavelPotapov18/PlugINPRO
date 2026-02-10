@@ -1,4 +1,5 @@
-﻿using Autodesk.Revit.UI;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using System;
 using System.IO;
 using System.Reflection;
@@ -10,6 +11,24 @@ namespace RevitHelloWorld
 {
     public class App : IExternalApplication
     {
+
+        // Статические переменные для хранения выбранных семейств
+        public static FamilySymbol SelectedSupportFamily { get; set; }
+        public static FamilySymbol SelectedCableTraySupportFamily { get; set; }
+        public static FamilySymbol SelectedPipeSupportFamily { get; set; } // НОВОЕ: для труб
+
+        // ============================================
+        // ДОБАВЛЕННЫЕ ПОЛЯ ДЛЯ ХРАНЕНИЯ РАЗМЕРОВ
+        // ============================================
+
+        // Последние размеры воздуховода (для информации)
+        public static double LastDuctWidth { get; set; }
+        public static double LastDuctHeight { get; set; }
+        public static double LastDuctDiameter { get; set; }
+        public static bool LastDuctWasRound { get; set; }
+
+        // Можно также хранить строковую информацию для отображения
+        public static string LastDuctInfo { get; set; }
 
         public Result OnStartup(UIControlledApplication application)
         {
@@ -113,6 +132,54 @@ namespace RevitHelloWorld
             IfcRvtButtonData.Image = LoadImage("PlugINPRO.Resources.ifc16.png");
             IfcRvtButtonData.ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств";
             bimPanel.AddItem(IfcRvtButtonData);
+
+            // ============================================
+            // ПАНЕЛЬ ОВ (Отопление и Вентиляция)
+            // ============================================
+            RibbonPanel ovPanel = application.CreateRibbonPanel("INPRO", "ОВ");
+
+            // Кнопка "Опоры воздуховодов"
+            PushButtonData ductSupportsButtonData = new PushButtonData(
+                "DuctSupports",
+                "Опоры\nвоздуховодов",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.DuctSupportsCommand"
+            );
+            ductSupportsButtonData.ToolTip = "Расстановка опор по траектории воздуховода\nВключает выбор крепления и шага";
+            ovPanel.AddItem(ductSupportsButtonData);
+            // ============================================
+
+            // ============================================
+            // НОВАЯ ПАНЕЛЬ ЭОМ (Электромонтаж)
+            // ============================================
+            RibbonPanel eomPanel = application.CreateRibbonPanel("INPRO", "ЭОМ");
+
+            // Кнопка "Опоры лотков"
+            PushButtonData cableTraySupportsButtonData = new PushButtonData(
+                "CableTraySupports",
+                "Опоры\nлотков",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.CableTraySupportsCommand"
+            );
+            cableTraySupportsButtonData.ToolTip = "Расстановка опор по траектории кабельного лотка\nВключает выбор крепления и шага";
+            eomPanel.AddItem(cableTraySupportsButtonData);
+            // ============================================
+
+            // ============================================
+            // НОВАЯ ПАНЕЛЬ ВК (Водопровод и канализация)
+            // ============================================
+            RibbonPanel vkPanel = application.CreateRibbonPanel("INPRO", "ВК");
+
+            // Кнопка "Опоры трубопроводов"
+            PushButtonData pipeSupportsButtonData = new PushButtonData(
+                "PipeSupports",
+                "Опоры\nтрубопроводов",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.PipeSupportsCommand"
+            );
+            pipeSupportsButtonData.ToolTip = "Расстановка опор по траектории трубопровода\nВключает выбор крепления и шага";
+            vkPanel.AddItem(pipeSupportsButtonData);
+            // ============================================
 
             return Result.Succeeded;
 
