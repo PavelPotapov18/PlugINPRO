@@ -78,11 +78,16 @@
     <Compile Include="InfoWindow.xaml.cs">
       <DependentUpon>InfoWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Properties\PdfDwgExportCommand.cs" />
     <Compile Include="RevIZMCommand.cs" />
     <Compile Include="IFCByCoordinatesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="IFCWindow.xaml.cs">
       <DependentUpon>IFCWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="WorksetsCheckCommand.cs" />
+    <Compile Include="WorksetsCheckWindow.xaml.cs">
+      <DependentUpon>WorksetsCheckWindow.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -111,6 +116,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="InfoWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="WorksetsCheckWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -154,6 +163,10 @@
     <EmbeddedResource Include="Resources\DuctFitting32.png" />
     <EmbeddedResource Include="Resources\PipeFitting16.png" />
     <EmbeddedResource Include="Resources\PipeFitting32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Worksets16.png" />
+    <EmbeddedResource Include="Resources\Worksets32.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

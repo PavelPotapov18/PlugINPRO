@@ -96,6 +96,36 @@ namespace RevitHelloWorld
 
             commonPanel.AddItem(gridsButtonData);
 
+            // Кнопка "Проверка рабочих наборов"
+            PushButtonData worksetsButtonData = new PushButtonData(
+                "WorksetsButton",
+                "Проверка\nраб.наборов",
+                assemblyPath,
+                "PlugINPRO.WorksetsCheckCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.Worksets32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Worksets16.png"),
+                ToolTip = "Проверка рабочих наборов на корректность заполнения по элементам",
+                LongDescription = "Работает для наборов \"Общие уровни и сетки\" и наборов для связанных файлов (\"#Связь_АР\", \"#Связь_КР\" и др.)"
+            };
+            commonPanel.AddItem(worksetsButtonData);
+
+            // Кнопка "Экспорт PDF и DWG"
+            PushButtonData exportButtonData = new PushButtonData(
+                "PdfDwgExportButton",
+                "Экспорт\nPDF и DWG",
+                assemblyPath,
+                "PlugINPRO.PdfDwgExportCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.Worksets32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Worksets16.png"),
+                ToolTip = "Экспорт листов и комплектов в PDF и DWG формат",
+                LongDescription = "Экспорт листов проекта по комплектам и создание сводного PDF файла для выбранного комплекта"
+            };
+            commonPanel.AddItem(exportButtonData);
+
             //Создаем панель ГЕНПЛАН
             RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "Генплан");
 

@@ -23,8 +23,10 @@ namespace PlugINPRO
             // --- ОКНО ВВОДА ---
             GridsOffWindow window = new GridsOffWindow();
             // привязываем к окну Revit
-            var helper = new System.Windows.Interop.WindowInteropHelper(window);
-            helper.Owner = uiApp.MainWindowHandle;
+            var helper = new System.Windows.Interop.WindowInteropHelper(window)
+            {
+                Owner = uiApp.MainWindowHandle
+            };
 
             bool? dialogResult = window.ShowDialog();
 

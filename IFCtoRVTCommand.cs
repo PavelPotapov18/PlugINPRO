@@ -71,8 +71,10 @@ namespace PlugINPRO
                     string materialName = "ADSK_Бетон_Железобетон";
                     ElementId patternId = ElementId.InvalidElementId;
 
-                    FilteredElementCollector coll1 = new FilteredElementCollector(doc);
-                    var materials = coll1.OfClass(typeof(Material)).ToElements();
+                    var materials = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Material))
+                        .Cast<Material>()
+                        .ToList();
 
                     foreach (Material mat in materials)
                     {
@@ -104,8 +106,10 @@ namespace PlugINPRO
                     List<ElementId> familiesToDelete = new List<ElementId>();
                     List<string> famKeyWords = new List<string>{ "Гайка", "Шайба", "Анкерный блок", "STIRRUP", "Верхняя сетка", "Нижняя сетка", "П-стержень", "Рабочий стержень", "ХОМУТ", "Каркас пространственный" };
 
-                    FilteredElementCollector coll2 = new FilteredElementCollector(doc);
-                    var families = coll2.OfClass(typeof(Family));
+                    var families = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Family))
+                        .Cast<Family>()
+                        .ToList();
                     foreach (Family family in families)
                     {
                         foreach(string kw in famKeyWords)
