@@ -119,15 +119,15 @@ namespace RevitHelloWorld
                 "PlugINPRO.PdfDwgExportCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.Worksets32.png"),
-                Image = LoadImage("PlugINPRO.Resources.Worksets16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.export32.png"),
+                Image = LoadImage("PlugINPRO.Resources.export16.png"),
                 ToolTip = "Экспорт листов и комплектов в PDF и DWG формат",
-                LongDescription = "Экспорт листов проекта по комплектам и создание сводного PDF файла для выбранного комплекта"
+                LongDescription = "Экспорт листов проекта в PDF и DWG по комплектам и создание сводного PDF файла для выбранного комплекта"
             };
             commonPanel.AddItem(exportButtonData);
 
-            //Создаем панель ГЕНПЛАН
-            RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "Генплан");
+            //Создаем панель IFC
+            RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "IFC");
 
             // Кнопка "IFC по координатам"
             PushButtonData ifcButtonData = new PushButtonData(
@@ -155,6 +155,19 @@ namespace RevitHelloWorld
                 Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
                 ToolTip = "Установить все координаты в 0"
             };
+            // Кнопка "Покраска IFC элементов"
+            PushButtonData paintButtonData = new PushButtonData(
+                "IFCPaint",
+                "Покраска IFC элементов",
+                assemblyPath,
+                "PlugINPRO.IFCPaintCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
+                ToolTip = "Покраска требуемых элементов из IFC связей"
+            };
+
 
 
             //Кнопка - контейнер "IFC"(открывает список команд по работе с IFC)
@@ -168,7 +181,9 @@ namespace RevitHelloWorld
 
             IfcPullButton.AddPushButton(ifcButtonData);
             IfcPullButton.AddPushButton(resetButtonData);
-            
+            IfcPullButton.AddPushButton(paintButtonData);
+
+
             //Создаем панель BIM
             RibbonPanel bimPanel = application.CreateRibbonPanel("INPRO", "BIM");
 

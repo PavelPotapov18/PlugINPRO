@@ -42,6 +42,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
@@ -66,10 +67,17 @@
     <Compile Include="GridsOffWindow.xaml.cs">
       <DependentUpon>GridsOffWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="IFCPaintCommand.cs" />
+    <Compile Include="IFCPaintWindow.xaml.cs">
+      <DependentUpon>IFCPaintWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="IFCRVTWindow.xaml.cs">
       <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="IFCtoRVTCommand.cs" />
+    <Compile Include="PdfDwgExportWindow.xaml.cs">
+      <DependentUpon>PdfDwgExportWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="PipeFittingSettingsWindow.xaml.cs">
       <DependentUpon>PipeFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
@@ -78,7 +86,7 @@
     <Compile Include="InfoWindow.xaml.cs">
       <DependentUpon>InfoWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Properties\PdfDwgExportCommand.cs" />
+    <Compile Include="PdfDwgExportCommand.cs" />
     <Compile Include="RevIZMCommand.cs" />
     <Compile Include="IFCByCoordinatesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -103,11 +111,19 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="IFCPaintWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="IFCRVTWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="IFCWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="PdfDwgExportWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -167,6 +183,10 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\Worksets16.png" />
     <EmbeddedResource Include="Resources\Worksets32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\export16.png" />
+    <EmbeddedResource Include="Resources\export32.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
