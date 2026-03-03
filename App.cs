@@ -80,10 +80,7 @@ namespace RevitHelloWorld
             };
 
             commonPanel.AddItem(revButtonData);
-<<<<<<< HEAD
 
-=======
->>>>>>> 4cbb684ed9017266544c3013d06c45f4fbb5e759
 
             // Кнопка "Отключение осей и уровней связанных файлов"
             PushButtonData gridsButtonData = new PushButtonData(
@@ -139,20 +136,12 @@ namespace RevitHelloWorld
                 "IFC по\nкоординатам",
                 assemblyPath,
                 "PlugINPRO.IFCByCoordinatesCommand"
-<<<<<<< HEAD
-            );
-            ifcButtonData.LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png");
-            ifcButtonData.Image = LoadImage("PlugINPRO.Resources.ifc16.png");
-            ifcButtonData.ToolTip = "Переместить выбранный IFC на введенные координаты";
-=======
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
                 Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
                 ToolTip = "Переместить выбранный IFC на введенные координаты"
             };
->>>>>>> 4cbb684ed9017266544c3013d06c45f4fbb5e759
-
 
             // Кнопка "Сбросить"
             PushButtonData resetButtonData = new PushButtonData(
@@ -179,12 +168,6 @@ namespace RevitHelloWorld
                 ToolTip = "Покраска требуемых элементов из IFC связей"
             };
 
-
-
-<<<<<<< HEAD
-
-=======
->>>>>>> 4cbb684ed9017266544c3013d06c45f4fbb5e759
             //Кнопка - контейнер "IFC"(открывает список команд по работе с IFC)
             PulldownButtonData IfcPullData = new PulldownButtonData("IFCTools", "IFC")
             {
@@ -196,12 +179,8 @@ namespace RevitHelloWorld
 
             IfcPullButton.AddPushButton(ifcButtonData);
             IfcPullButton.AddPushButton(resetButtonData);
-<<<<<<< HEAD
 
-
-=======
             IfcPullButton.AddPushButton(paintButtonData);
->>>>>>> 4cbb684ed9017266544c3013d06c45f4fbb5e759
 
 
             //Создаем панель BIM
@@ -221,6 +200,7 @@ namespace RevitHelloWorld
             };
             
             bimPanel.AddItem(IfcRvtButtonData);
+
             // Добавим после существующих панелей или в соответствующем месте
             RibbonPanel arPanel = application.CreateRibbonPanel("INPRO", "АР");
 
@@ -230,11 +210,13 @@ namespace RevitHelloWorld
                 "Редактор\nдверей",
                 assemblyPath,
                 "PlugINPRO.DoorEditorCommand"
-            );
-            doorEditorButtonData.LargeImage = LoadImage("PlugINPRO.Resources.door32.png");
-            doorEditorButtonData.Image = LoadImage("PlugINPRO.Resources.door16.png");
-            doorEditorButtonData.ToolTip = "Редактирование параметров выбранной двери с предпросмотром";
-            doorEditorButtonData.LongDescription = "Позволяет редактировать параметры двери в реальном времени с визуальным отображением изменений";
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.door32.png"),
+                Image = LoadImage("PlugINPRO.Resources.door16.png"),
+                ToolTip = "Редактирование параметров выбранной двери с предпросмотром",
+                LongDescription = "Позволяет редактировать параметры двери в реальном времени с визуальным отображением изменений"
+            };
 
             arPanel.AddItem(doorEditorButtonData);
             // ============================================
