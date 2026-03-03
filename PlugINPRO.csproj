@@ -42,6 +42,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
@@ -58,14 +59,29 @@
       <DependentUpon>CableTrayFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="CableTraySupportCommand.cs" />
+    <Compile Include="DoorEditorCommand.cs" />
+    <Compile Include="DoorPreviewWindow.xaml.cs">
+      <DependentUpon>DoorPreviewWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="DuctFittingSettingsWindow.xaml.cs">
       <DependentUpon>DuctFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="DuctSupportCommand.cs" />
+    <Compile Include="GridsOffCommand.cs" />
+    <Compile Include="GridsOffWindow.xaml.cs">
+      <DependentUpon>GridsOffWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="IFCPaintCommand.cs" />
+    <Compile Include="IFCPaintWindow.xaml.cs">
+      <DependentUpon>IFCPaintWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="IFCRVTWindow.xaml.cs">
       <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="IFCtoRVTCommand.cs" />
+    <Compile Include="PdfDwgExportWindow.xaml.cs">
+      <DependentUpon>PdfDwgExportWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="PipeFittingSettingsWindow.xaml.cs">
       <DependentUpon>PipeFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
@@ -74,11 +90,16 @@
     <Compile Include="InfoWindow.xaml.cs">
       <DependentUpon>InfoWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="PdfDwgExportCommand.cs" />
     <Compile Include="RevIZMCommand.cs" />
     <Compile Include="IFCByCoordinatesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="IFCWindow.xaml.cs">
       <DependentUpon>IFCWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="WorksetsCheckCommand.cs" />
+    <Compile Include="WorksetsCheckWindow.xaml.cs">
+      <DependentUpon>WorksetsCheckWindow.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -86,7 +107,19 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="DoorPreviewWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="DuctFittingSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="GridsOffWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="IFCPaintWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -98,11 +131,19 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="PdfDwgExportWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="PipeFittingSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="InfoWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="WorksetsCheckWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -128,17 +169,32 @@
     <EmbeddedResource Include="Resources\R00_16.png" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Resources\INPRO128.png" />
-    <Resource Include="Resources\INPRO256.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\INPRO32.png" />
-  </ItemGroup>
-  <ItemGroup>
     <Resource Include="Resources\INPRO.png" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\info32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\grids32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\grids16.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\CableTrayFitting16.png" />
+    <EmbeddedResource Include="Resources\CableTrayFitting32.png" />
+    <EmbeddedResource Include="Resources\DuctFitting16.png" />
+    <EmbeddedResource Include="Resources\DuctFitting32.png" />
+    <EmbeddedResource Include="Resources\PipeFitting16.png" />
+    <EmbeddedResource Include="Resources\PipeFitting32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Worksets16.png" />
+    <EmbeddedResource Include="Resources\Worksets32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\export16.png" />
+    <EmbeddedResource Include="Resources\export32.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
