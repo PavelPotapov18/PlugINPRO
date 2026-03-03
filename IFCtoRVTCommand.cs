@@ -19,6 +19,7 @@ namespace PlugINPRO
             ref string message,
             ElementSet elements)
         {
+            TaskDialog.Show("DEBUG", "IFCtoRVTCommand стартовала");
             UIApplication uiApp = commandData.Application;
 
             Application app = uiApp.Application;
@@ -56,6 +57,7 @@ namespace PlugINPRO
                     }
                     
                 }
+                TaskDialog.Show("Debug", $"Найдено IFC файлов: {ifcFiles.Count}");
             }
 
             foreach (string file in ifcFiles)
@@ -132,6 +134,25 @@ namespace PlugINPRO
                         }
                     }
 
+                    //Удаляем материалы, содержащие STEEL\
+                    List<ElementId> materialsToDelete = new List<ElementId>();
+                    foreach(Material mat  in materials)
+                        if(mat.Name.ToUpper().Contains("STEEL"))
+                            materialsToDelete.Add(mat.Id);
+
+                    if (materialsToDelete.Count > 0)
+                    {
+                        using (Transaction t = new Transaction(doc, "Удаление материалов STEEL"))
+                        {
+                            t.Start();
+                            foreach(ElementId materialId in materialsToDelete)
+                            {
+                                doc.Delete(materialId);
+                            }
+                            t.Commit();
+                        }
+                    }
+
                     //Генерируем путь для сохранения RVT файла
                     string rvtFileName = Path.GetFileNameWithoutExtension(ifcFile) + ".rvt";
                     string rvtPath = Path.Combine(outputFolder, rvtFileName);
@@ -144,7 +165,7 @@ namespace PlugINPRO
                     doc.SaveAs(rvtPath, saveAsOptions);
 
                     //Закрываем документ
-                    doc.Close();
+                    doc.Close(false);
 
                     TaskDialog.Show("Revit", $"Сохранен: {rvtPath}");
                 }
