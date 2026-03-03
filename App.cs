@@ -179,7 +179,6 @@ namespace RevitHelloWorld
 
             IfcPullButton.AddPushButton(ifcButtonData);
             IfcPullButton.AddPushButton(resetButtonData);
-
             IfcPullButton.AddPushButton(paintButtonData);
 
 
@@ -212,8 +211,8 @@ namespace RevitHelloWorld
                 "PlugINPRO.DoorEditorCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.door32.png"),
-                Image = LoadImage("PlugINPRO.Resources.door16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.dooredit32.png"),
+                Image = LoadImage("PlugINPRO.Resources.dooredit16.png"),
                 ToolTip = "Редактирование параметров выбранной двери с предпросмотром",
                 LongDescription = "Позволяет редактировать параметры двери в реальном времени с визуальным отображением изменений"
             };
@@ -290,7 +289,7 @@ namespace RevitHelloWorld
             return Result.Succeeded;
         }
 
-        private BitmapImage LoadImage(string resourceName)
+        private BitmapImage LoadImage(string resourceName)  
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
 

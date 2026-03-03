@@ -196,5 +196,9 @@
     <EmbeddedResource Include="Resources\export16.png" />
     <EmbeddedResource Include="Resources\export32.png" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\dooredit16.png" />
+    <EmbeddedResource Include="Resources\dooredit32.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
