@@ -19,7 +19,6 @@ namespace PlugINPRO
             ref string message,
             ElementSet elements)
         {
-            TaskDialog.Show("DEBUG", "IFCtoRVTCommand стартовала");
             UIApplication uiApp = commandData.Application;
 
             Application app = uiApp.Application;
