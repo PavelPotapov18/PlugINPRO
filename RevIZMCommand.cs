@@ -91,15 +91,15 @@ namespace PlugINPRO
                 {
                     List<string> c = new List<string>(); //Список для данных по ревизии
                     List<string> c1 = new List<string>(); //Список для данных по ИЗМу
+                    string descriptionRev;
+                    string date;
 
-                    string[] description = revs[i][j].Description.Split('!');
-                    string descriptionRev = description[1];
-                    string date = revs[i][j].RevisionDate;
-
-                    if (description[0] != "")
+                    if (revs[i][j].Description.Contains('!'))
                     {
+                        string[] description = revs[i][j].Description.Split('!');
+                        descriptionRev = description[1];
+                        date = revs[i][j].RevisionDate;
                         string[] descriptionIZMData = description[0].Split('_');
-
                         string cloudCount = "-";
 
                         if (cloudDict.ContainsKey(revs[i][j].Id) && cloudDict[revs[i][j].Id].Contains(sheets[i].Id))
@@ -117,6 +117,9 @@ namespace PlugINPRO
                     }
                     else
                     {
+                        descriptionRev = revs[i][j].Description;
+                        date = revs[i][j].RevisionDate;
+
                         //Формируем список с данными ИЗМа, добавляем в общий
                         c1.Add("");
                         c1.Add("");
@@ -140,7 +143,7 @@ namespace PlugINPRO
                     c.Add(descriptionRev);
                     c.Add(revs[i][j].IssuedTo);
                     c.Add(revs[i][j].IssuedBy);
-                    b.Add(c);
+                    b.Add(c);  
                 }
                 //Проверка длины списка с данными ИЗМов (берем последние 4 элемента)
                 if (b1.Count > 4)
