@@ -85,7 +85,7 @@ namespace PlugINPRO
                     // Сохраняем ID вида
                     tempViewId = sectionView.Id;
 
-                    // Скрываем все, кроме выбранной двери
+                    // Скрываем все, кроме двери и её зависимых элементов
                     HideAllExceptDoor(sectionView, doc, door);
 
                     // ОТКЛЮЧАЕМ CROP VIEW
@@ -213,29 +213,60 @@ namespace PlugINPRO
             return null;
         }
 
-        private void HideAllExceptDoor(ViewSection view, Document doc, Element door)
+        private void HideAllExceptDoor(View view, Document doc, Element door)
         {
             try
             {
                 view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
 
-                FilteredElementCollector collector = new FilteredElementCollector(doc);
-                ICollection<ElementId> allElementIds = collector
-                    .WhereElementIsNotElementType()
-                    .ToElementIds();
+                // Получаем зависимые элементы двери (shared-вложения, фурнитура и т.д.)
+                ICollection<ElementId> dependentIds = door.GetDependentElements(null);
 
-                List<ElementId> elementsToHide = new List<ElementId>();
-                foreach (ElementId id in allElementIds)
+                // Создаем множество элементов, которые нужно ОСТАВИТЬ
+                HashSet<ElementId> keepIds = new HashSet<ElementId>(dependentIds);
+                keepIds.Add(door.Id);
+
+                // Собираем ВСЕ элементы в документе
+                FilteredElementCollector collector = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType();
+
+                List<ElementId> toHide = new List<ElementId>();
+
+                foreach (Element elem in collector)
                 {
-                    if (id != door.Id)
+                    if (!keepIds.Contains(elem.Id))
                     {
-                        elementsToHide.Add(id);
+                        // В Revit 2022 нет специального метода проверки,
+                        // просто добавляем в список - если элемент нельзя скрыть,
+                        // Revit проигнорирует его при HideElements
+                        toHide.Add(elem.Id);
                     }
                 }
 
-                if (elementsToHide.Count > 0)
+                // Скрываем элементы с обработкой возможных ошибок
+                if (toHide.Count > 0)
                 {
-                    view.HideElementsTemporary(elementsToHide);
+                    try
+                    {
+                        view.HideElements(toHide);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Если не удалось скрыть все сразу, пробуем по одному
+                        System.Diagnostics.Debug.WriteLine($"Ошибка при массовом скрытии: {ex.Message}");
+
+                        foreach (ElementId id in toHide)
+                        {
+                            try
+                            {
+                                view.HideElements(new List<ElementId> { id });
+                            }
+                            catch
+                            {
+                                // Игнорируем ошибки для отдельных элементов
+                            }
+                        }
+                    }
                 }
 
                 doc.Regenerate();
@@ -243,11 +274,6 @@ namespace PlugINPRO
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка при скрытии элементов: {ex.Message}");
-                try
-                {
-                    view.IsolateElementTemporary(door.Id);
-                }
-                catch { }
             }
         }
 
@@ -307,19 +333,25 @@ namespace PlugINPRO
                     rightDirection = new XYZ(1, 0, 0);
                 }
 
-                BoundingBoxXYZ sectionBox = new BoundingBoxXYZ();
+                // Создаем transform, но не применяем его сразу
                 Transform transform = Transform.Identity;
                 transform.BasisX = rightDirection;
                 transform.BasisY = new XYZ(0, 0, 1);
                 transform.BasisZ = viewDirection;
                 transform.Origin = center;
 
+                // Создаем bounding box в локальных координатах
+                BoundingBoxXYZ sectionBox = new BoundingBoxXYZ();
+
+                // Устанавливаем transform
                 sectionBox.Transform = transform;
 
-                double width = (bb.Max.X - bb.Min.X) + 4;
-                double height = (bb.Max.Z - bb.Min.Z) + 4;
-                double depth = 4;
+                // Размеры в локальных координатах (намного меньше!)
+                double width = (bb.Max.X - bb.Min.X) + 0.5; // +0.5 фута запаса
+                double height = (bb.Max.Z - bb.Min.Z) + 0.5; // +0.5 фута запаса
+                double depth = 0.1; // Очень маленькая глубина (около 3 см)
 
+                // Устанавливаем min и max в локальных координатах
                 sectionBox.Min = new XYZ(-width / 2, -depth / 2, -height / 2);
                 sectionBox.Max = new XYZ(width / 2, depth / 2, height / 2);
 

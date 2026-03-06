@@ -10,16 +10,15 @@ using System.IO;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
+// Алиас для разрешения конфликта имён с Visibility
+using WpfVisibility = System.Windows.Visibility;
+
 // Алиасы
 using Path = System.Windows.Shapes.Path;
-using RevitLine = Autodesk.Revit.DB.Line;
-using RevitRectangle = Autodesk.Revit.DB.Rectangle;
 using WpfRectangle = System.Windows.Shapes.Rectangle;
 using WpfTextBox = System.Windows.Controls.TextBox;
 using WpfComboBox = System.Windows.Controls.ComboBox;
 using WpfGrid = System.Windows.Controls.Grid;
-using WpfColor = System.Windows.Media.Color;
-using RevitColor = Autodesk.Revit.DB.Color;
 using WpfTextBlock = System.Windows.Controls.TextBlock;
 using WpfBorder = System.Windows.Controls.Border;
 using WpfScrollViewer = System.Windows.Controls.ScrollViewer;
@@ -27,7 +26,7 @@ using WpfStackPanel = System.Windows.Controls.StackPanel;
 
 namespace PlugINPRO
 {
-    // 1️⃣ Добавлен enum для типов параметров
+    // Enum для типов параметров
     public enum ParamKind
     {
         String,
@@ -38,13 +37,46 @@ namespace PlugINPRO
         ElementId
     }
 
-    // 1️⃣ Обновленный класс с Kind вместо IsMaterial
-    public class MaterialParameterInfo
+    // Класс для информации о параметре
+    public class ParameterInfo
     {
         public string Name { get; set; }
         public Parameter Parameter { get; set; }
-        public string DisplayValue { get; set; }
         public ParamKind Kind { get; set; }
+        public string DisplayValue { get; set; }
+    }
+
+    // Класс для элементов материала
+    public class MaterialItem
+    {
+        public ElementId Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    // Класс для элементов типа семейства
+    public class FamilyTypeItem
+    {
+        public ElementId Id { get; set; }
+        public string Name { get; set; }
+        public string FamilyName { get; set; }
+
+        // Свойство для отображения в комбобоксе
+        public string DisplayName
+        {
+            get
+            {
+                if (Id == ElementId.InvalidElementId)
+                    return Name;
+                if (!string.IsNullOrEmpty(FamilyName))
+                    return $"{Name} ({FamilyName})";
+                return Name;
+            }
+        }
+
+        public override string ToString()
+        {
+            return DisplayName;
+        }
     }
 
     public partial class DoorPreviewWindow : Window
@@ -72,19 +104,38 @@ namespace PlugINPRO
         private readonly BuiltInParameter _roughWidthParam = BuiltInParameter.FAMILY_ROUGH_WIDTH_PARAM;
         private readonly BuiltInParameter _roughHeightParam = BuiltInParameter.FAMILY_ROUGH_HEIGHT_PARAM;
 
-        // Materials
-        private List<MaterialParameterInfo> _materialParameters = new List<MaterialParameterInfo>();
-        private Dictionary<string, Dictionary<string, object>> _tempMaterialValues = new Dictionary<string, Dictionary<string, object>>();
+        // Системные параметры двери
+        private readonly BuiltInParameter _doorWidthParam = BuiltInParameter.DOOR_WIDTH;
+        private readonly BuiltInParameter _doorHeightParam = BuiltInParameter.DOOR_HEIGHT;
 
-        // Construction
-        private List<MaterialParameterInfo> _constructionParameters = new List<MaterialParameterInfo>();
-        private Dictionary<string, Dictionary<string, object>> _tempConstructionValues = new Dictionary<string, Dictionary<string, object>>();
+        // Параметры по группам
+        private List<ParameterInfo> _materialParameters = new List<ParameterInfo>();
+        private List<ParameterInfo> _constructionParameters = new List<ParameterInfo>();
+        private List<ParameterInfo> _visibilityParameters = new List<ParameterInfo>();
+        private List<ParameterInfo> _otherParameters = new List<ParameterInfo>();
 
-        // Other
-        private List<MaterialParameterInfo> _otherParameters = new List<MaterialParameterInfo>();
-        private Dictionary<string, Dictionary<string, object>> _tempOtherValues = new Dictionary<string, Dictionary<string, object>>();
+        private Dictionary<string, object> _tempMaterialValues = new Dictionary<string, object>();
+        private Dictionary<string, object> _tempConstructionValues = new Dictionary<string, object>();
+        private Dictionary<string, object> _tempVisibilityValues = new Dictionary<string, object>();
+        private Dictionary<string, object> _tempOtherValues = new Dictionary<string, object>();
 
         private List<Material> _allMaterials = new List<Material>();
+
+        // Кэш для типов вложенного семейства АС-Полотно
+        private List<FamilyTypeItem> _nestedFamilyTypes = new List<FamilyTypeItem>();
+        private bool _nestedTypesLoaded = false;
+
+        // Словарь для хранения состояния групп (открыта/закрыта)
+        private Dictionary<string, bool> _groupStates = new Dictionary<string, bool>
+        {
+            { "Materials", false },
+            { "Construction", false },
+            { "Visibility", false },
+            { "Other", false }
+        };
+
+        // Словарь для хранения ссылок на элементы групп
+        private Dictionary<string, (Button Header, Border Content)> _groupControls;
 
         public DoorPreviewWindow(string imagePath, Document doc, Element door, UIDocument uidoc, ElementId tempViewId, View previousView)
         {
@@ -97,6 +148,9 @@ namespace PlugINPRO
             _tempViewId = tempViewId;
             _previousView = previousView;
 
+            // Инициализация групп аккордеона
+            InitializeGroups();
+
             ElementId typeId = _door.GetTypeId();
             if (typeId != null && typeId != ElementId.InvalidElementId)
             {
@@ -104,22 +158,245 @@ namespace PlugINPRO
                 _selectedType = _currentType;
             }
 
+            // Загружаем типы вложенного семейства АС-Полотно
+            LoadNestedFamilyTypes();
+
             LoadImage();
             LoadDoorParameters();
+            LoadDoorSystemSizeParameters();
             LoadMaterials();
             LoadFamilyTypes();
+
+            // Загружаем параметры
             LoadMaterialParameters();
             LoadConstructionParameters();
+            LoadVisibilityParameters();
             LoadOtherParameters();
 
             UpdateCurrentTypeDisplay();
             DrawDoorDiagram();
 
             UpdateAndRefreshButton.IsEnabled = false;
-            ApplyButton.IsEnabled = false;
         }
 
-        // ========================= ВАШИ ОРИГИНАЛЬНЫЕ МЕТОДЫ =========================
+        // Вспомогательный метод для создания кисти из RGB
+        private SolidColorBrush ColorFromRgb(byte r, byte g, byte b)
+        {
+            return new SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
+        }
+
+        // ========================= ИНИЦИАЛИЗАЦИЯ ГРУПП АККОРДЕОНА =========================
+        private void InitializeGroups()
+        {
+            _groupControls = new Dictionary<string, (Button Header, Border Content)>
+            {
+                { "Materials", (MaterialsHeaderButton, MaterialsContent) },
+                { "Construction", (ConstructionHeaderButton, ConstructionContent) },
+                { "Visibility", (VisibilityHeaderButton, VisibilityContent) },
+                { "Other", (OtherHeaderButton, OtherContent) }
+            };
+
+            // Восстанавливаем состояние групп
+            foreach (var group in _groupControls)
+            {
+                UpdateGroupArrow(group.Value.Header, _groupStates[group.Key]);
+                group.Value.Content.Visibility = _groupStates[group.Key] ?
+                    WpfVisibility.Visible : WpfVisibility.Collapsed;
+            }
+        }
+
+        // Обработчик клика по заголовку группы
+        private void ToggleGroup_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Button headerButton = sender as Button;
+                if (headerButton == null) return;
+
+                string groupName = headerButton.Tag as string;
+                if (string.IsNullOrEmpty(groupName) || !_groupControls.ContainsKey(groupName)) return;
+
+                // Переключаем состояние
+                bool newState = !_groupStates[groupName];
+                _groupStates[groupName] = newState;
+
+                var group = _groupControls[groupName];
+
+                // Обновляем видимость контента
+                if (group.Content != null)
+                {
+                    group.Content.Visibility = newState ? WpfVisibility.Visible : WpfVisibility.Collapsed;
+                }
+
+                // Обновляем стрелку
+                UpdateGroupArrow(group.Header, newState);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в ToggleGroup_Click: {ex.Message}");
+            }
+        }
+
+        // Обновление стрелки в заголовке группы
+        private void UpdateGroupArrow(Button headerButton, bool isExpanded)
+        {
+            if (headerButton == null) return;
+
+            try
+            {
+                // Ищем Path с стрелкой в визуальном дереве
+                var arrowPath = FindVisualChild<Path>(headerButton);
+                if (arrowPath != null)
+                {
+                    var rotateTransform = arrowPath.RenderTransform as RotateTransform;
+                    if (rotateTransform != null)
+                    {
+                        rotateTransform.Angle = isExpanded ? 180 : 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в UpdateGroupArrow: {ex.Message}");
+            }
+        }
+
+        // Вспомогательный метод для поиска дочернего элемента в визуальном дереве
+        private T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child != null && child is T)
+                    return (T)child;
+
+                var descendant = FindVisualChild<T>(child);
+                if (descendant != null)
+                    return descendant;
+            }
+            return null;
+        }
+
+        // ========================= ЗАГРУЗКА ТИПОВ ВЛОЖЕННОГО СЕМЕЙСТВА =========================
+        private void LoadNestedFamilyTypes()
+        {
+            try
+            {
+                _nestedFamilyTypes.Clear();
+
+                // Собираем все семейства с именем содержащим "АС-Полотно"
+                FilteredElementCollector collector = new FilteredElementCollector(_doc);
+                var families = collector
+                    .OfClass(typeof(Family))
+                    .Cast<Family>()
+                    .Where(f => f != null && f.Name.Contains("АС-Полотно"))
+                    .ToList();
+
+                foreach (var family in families)
+                {
+                    // Получаем все типы этого семейства
+                    FilteredElementCollector typeCollector = new FilteredElementCollector(_doc);
+                    var symbols = typeCollector
+                        .OfClass(typeof(FamilySymbol))
+                        .Cast<FamilySymbol>()
+                        .Where(fs => fs.Family != null && fs.Family.Id == family.Id)
+                        .ToList();
+
+                    foreach (var symbol in symbols)
+                    {
+                        _nestedFamilyTypes.Add(new FamilyTypeItem
+                        {
+                            Id = symbol.Id,
+                            Name = symbol.Name,
+                            FamilyName = family.Name
+                        });
+                    }
+                }
+
+                // Сортируем по имени
+                _nestedFamilyTypes = _nestedFamilyTypes.OrderBy(x => x.Name).ToList();
+
+                _nestedTypesLoaded = true;
+
+                if (_nestedFamilyTypes.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("Внимание: не найдено семейство АС-Полотно");
+                }
+
+                // Обновляем комбобоксы после загрузки типов
+                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    RefreshAllFamilyTypeCombos();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки типов вложенного семейства: {ex.Message}");
+                _nestedTypesLoaded = false;
+            }
+        }
+
+        // ========================= ОБНОВЛЕНИЕ ВСЕХ КОМБОБОКСОВ FAMILYTYPE =========================
+        private void RefreshAllFamilyTypeCombos()
+        {
+            try
+            {
+                if (ConstructionStackPanel == null) return;
+
+                // Ищем все комбобоксы в ConstructionStackPanel
+                foreach (var child in ConstructionStackPanel.Children)
+                {
+                    if (child is WpfBorder border && border.Child is WpfGrid grid)
+                    {
+                        foreach (var gridChild in grid.Children)
+                        {
+                            if (gridChild is WpfComboBox combo)
+                            {
+                                var tag = combo.Tag as Tuple<ParameterInfo, Dictionary<string, object>>;
+                                if (tag != null && tag.Item1.Kind == ParamKind.FamilyType)
+                                {
+                                    var currentSelection = combo.SelectedItem as FamilyTypeItem;
+
+                                    // Создаем новый список с пустым элементом
+                                    List<FamilyTypeItem> items = new List<FamilyTypeItem>
+                                    {
+                                        new FamilyTypeItem { Id = ElementId.InvalidElementId, Name = "<Не задано>", FamilyName = "" }
+                                    };
+
+                                    if (_nestedFamilyTypes.Count > 0)
+                                    {
+                                        items.AddRange(_nestedFamilyTypes);
+                                    }
+
+                                    combo.ItemsSource = null;
+                                    combo.ItemsSource = items;
+
+                                    // Восстанавливаем выделение
+                                    if (currentSelection != null)
+                                    {
+                                        var matchingItem = items.FirstOrDefault(x => x.Id == currentSelection.Id);
+                                        if (matchingItem != null)
+                                            combo.SelectedItem = matchingItem;
+                                        else
+                                            combo.SelectedItem = items[0];
+                                    }
+                                    else
+                                    {
+                                        combo.SelectedItem = items[0];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка обновления комбобоксов: {ex.Message}");
+            }
+        }
+
+        // ========================= ЗАГРУЗКА ИЗОБРАЖЕНИЯ =========================
         private void LoadImage()
         {
             try
@@ -146,6 +423,7 @@ namespace PlugINPRO
             }
         }
 
+        // ========================= ЗАГРУЗКА ПАРАМЕТРОВ ДВЕРИ =========================
         private void LoadDoorParameters()
         {
             try
@@ -206,6 +484,110 @@ namespace PlugINPRO
             }
         }
 
+        // ========================= ЗАГРУЗКА СИСТЕМНЫХ РАЗМЕРОВ ДВЕРИ =========================
+        private void LoadDoorSystemSizeParameters()
+        {
+            try
+            {
+                if (_door == null)
+                {
+                    DoorWidthTextBox.Text = "-";
+                    DoorHeightTextBox.Text = "-";
+                    return;
+                }
+
+                // ВАЖНО: Используем _door (экземпляр), а не _currentType (тип)
+                // Загружаем системную ширину (DOOR_WIDTH) - ПАРАМЕТР ЭКЗЕМПЛЯРА
+                Parameter doorWidthParam = _door.get_Parameter(_doorWidthParam);
+                if (doorWidthParam != null && doorWidthParam.HasValue)
+                {
+                    double widthInFeet = doorWidthParam.AsDouble();
+                    double widthInMm = widthInFeet * 304.8;
+                    DoorWidthTextBox.Text = $"{Math.Round(widthInMm, 0)} мм";
+
+                    DoorWidthTextBox.ToolTip = $"Точное значение: {widthInMm:F2} мм\n(в футах: {widthInFeet:F4})";
+                }
+                else
+                {
+                    DoorWidthTextBox.Text = "—";
+                    DoorWidthTextBox.ToolTip = "Системный параметр ширины не найден или не имеет значения";
+                }
+
+                // Загружаем системную высоту (DOOR_HEIGHT) - ПАРАМЕТР ЭКЗЕМПЛЯРА
+                Parameter doorHeightParam = _door.get_Parameter(_doorHeightParam);
+                if (doorHeightParam != null && doorHeightParam.HasValue)
+                {
+                    double heightInFeet = doorHeightParam.AsDouble();
+                    double heightInMm = heightInFeet * 304.8;
+                    DoorHeightTextBox.Text = $"{Math.Round(heightInMm, 0)} мм";
+
+                    DoorHeightTextBox.ToolTip = $"Точное значение: {heightInMm:F2} мм\n(в футах: {heightInFeet:F4})";
+                }
+                else
+                {
+                    DoorHeightTextBox.Text = "—";
+                    DoorHeightTextBox.ToolTip = "Системный параметр высоты не найден или не имеет значения";
+                }
+
+                HighlightIfMismatch();
+            }
+            catch (Exception ex)
+            {
+                DoorWidthTextBox.Text = "Ошибка";
+                DoorHeightTextBox.Text = "Ошибка";
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки системных размеров: {ex.Message}");
+            }
+        }
+
+        // ========================= ПРОВЕРКА НА СООТВЕТСТВИЕ РАЗМЕРОВ =========================
+        private void HighlightIfMismatch()
+        {
+            try
+            {
+                // Получаем системные размеры из экземпляра для сравнения
+                double systemWidth = 0;
+                double systemHeight = 0;
+
+                Parameter doorWidthParam = _door?.get_Parameter(_doorWidthParam);
+                Parameter doorHeightParam = _door?.get_Parameter(_doorHeightParam);
+
+                if (doorWidthParam != null && doorWidthParam.HasValue)
+                    systemWidth = doorWidthParam.AsDouble() * 304.8;
+
+                if (doorHeightParam != null && doorHeightParam.HasValue)
+                    systemHeight = doorHeightParam.AsDouble() * 304.8;
+
+                // Сравниваем с примерными размерами
+                if (systemWidth > 0 && double.TryParse(WidthTextBox.Text, out double roughWidth))
+                {
+                    if (Math.Abs(roughWidth - systemWidth) > 1.0) // Расхождение больше 1 мм
+                    {
+                        DoorWidthTextBox.Background = new SolidColorBrush(Colors.LightYellow);
+                        DoorWidthTextBox.ToolTip += $"\n\n⚠️ Внимание! Расхождение с примерной шириной: {Math.Abs(roughWidth - systemWidth):F1} мм";
+                    }
+                    else
+                    {
+                        DoorWidthTextBox.Background = ColorFromRgb(240, 240, 240);
+                    }
+                }
+
+                if (systemHeight > 0 && double.TryParse(HeightTextBox.Text, out double roughHeight))
+                {
+                    if (Math.Abs(roughHeight - systemHeight) > 1.0) // Расхождение больше 1 мм
+                    {
+                        DoorHeightTextBox.Background = new SolidColorBrush(Colors.LightYellow);
+                        DoorHeightTextBox.ToolTip += $"\n\n⚠️ Внимание! Расхождение с примерной высотой: {Math.Abs(roughHeight - systemHeight):F1} мм";
+                    }
+                    else
+                    {
+                        DoorHeightTextBox.Background = ColorFromRgb(240, 240, 240);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // ========================= ЗАГРУЗКА ТИПОВ ДВЕРИ =========================
         private void LoadFamilyTypes()
         {
             try
@@ -268,9 +650,13 @@ namespace PlugINPRO
                 StatusText.Text = $"Выбран тип: {_selectedType.Name}";
 
                 UpdateParametersFromType(selectedType);
+                LoadDoorSystemSizeParameters(); // Обновляем системные размеры
                 UpdateCurrentTypeDisplay();
+
+                // Перезагружаем все параметры для нового типа
                 LoadMaterialParameters();
                 LoadConstructionParameters();
+                LoadVisibilityParameters();
                 LoadOtherParameters();
 
                 UpdateAndRefreshButton.IsEnabled = true;
@@ -295,7 +681,8 @@ namespace PlugINPRO
                     HeightTextBox.Text = _newRoughHeight.ToString("F0");
                 }
 
-                DrawDoorDiagram();
+                LoadDoorSystemSizeParameters(); // Обновляем системные размеры
+                DrawDoorDiagram(); // Перерисовываем схему
             }
             catch (Exception ex)
             {
@@ -303,6 +690,7 @@ namespace PlugINPRO
             }
         }
 
+        // ========================= СОЗДАНИЕ НОВОГО ТИПА =========================
         private void CreateTypeButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -347,8 +735,11 @@ namespace PlugINPRO
                 LoadFamilyTypes();
                 UpdateCurrentTypeDisplay();
                 UpdateParametersFromType(_currentType);
+
+                // Перезагружаем все параметры
                 LoadMaterialParameters();
                 LoadConstructionParameters();
+                LoadVisibilityParameters();
                 LoadOtherParameters();
 
                 StatusText.Text = $"Создан новый тип: {_selectedType.Name}";
@@ -360,6 +751,7 @@ namespace PlugINPRO
             }
         }
 
+        // ========================= ОБРАБОТЧИКИ ИЗМЕНЕНИЙ =========================
         private void Parameter_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (_isUpdating) return;
@@ -373,7 +765,9 @@ namespace PlugINPRO
                 _newRoughWidth = width;
                 _newRoughHeight = height;
 
+                // Перерисовываем схему
                 DrawDoorDiagram();
+                HighlightIfMismatch();
 
                 UpdateAndRefreshButton.IsEnabled = (Math.Abs(_newRoughWidth - _originalRoughWidth) > 0.01 ||
                                                     Math.Abs(_newRoughHeight - _originalRoughHeight) > 0.01 ||
@@ -385,17 +779,26 @@ namespace PlugINPRO
             }
         }
 
+        // ========================= ОБНОВЛЕНИЕ ИЗОБРАЖЕНИЯ =========================
         private void UpdateAndRefreshButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 _isUpdating = true;
                 UpdateAndRefreshButton.IsEnabled = false;
-                ApplyButton.IsEnabled = false;
 
                 StatusText.Text = "Применение изменений...";
 
                 ApplyChanges();
+
+                // Обновляем системные размеры после применения изменений
+                LoadDoorSystemSizeParameters();
+
+                // Перерисовываем схему
+                DrawDoorDiagram();
+
+                // Обновляем параметры в интерфейсе
+                RefreshParameters();
 
                 StatusText.Text = "Создание нового изображения...";
 
@@ -423,6 +826,7 @@ namespace PlugINPRO
                 }
 
                 _isUpdating = false;
+                UpdateAndRefreshButton.IsEnabled = true;
             }
             catch (Exception ex)
             {
@@ -480,6 +884,7 @@ namespace PlugINPRO
             }
         }
 
+        // ========================= СОХРАНЕНИЕ ПАРАМЕТРОВ ТИПА =========================
         private bool SaveTypeParameter(string key, WpfTextBox textBox, BuiltInParameter builtInParam, bool convertToInternalUnits = false)
         {
             if (_parameters.ContainsKey(key))
@@ -511,20 +916,6 @@ namespace PlugINPRO
                 }
             }
             return false;
-        }
-
-        private void ApplyButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                ApplyChanges();
-                StatusText.Text = "Изменения применены успешно!";
-                UpdateAndRefreshButton.IsEnabled = true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка применения изменений: {ex.Message}");
-            }
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -569,6 +960,7 @@ namespace PlugINPRO
             }
         }
 
+        // ========================= ЗАГРУЗКА МАТЕРИАЛОВ =========================
         private void LoadMaterials()
         {
             try
@@ -586,8 +978,7 @@ namespace PlugINPRO
             }
         }
 
-        // 2️⃣ НОВЫЙ МЕТОД: Определение типа параметра
-        // 2️⃣ ИСПРАВЛЕННЫЙ МЕТОД: Определение типа параметра
+        // ========================= ОПРЕДЕЛЕНИЕ ТИПА ПАРАМЕТРА =========================
         private ParamKind GetParameterKind(Parameter param)
         {
             if (param.StorageType == StorageType.String)
@@ -603,54 +994,105 @@ namespace PlugINPRO
             {
                 try
                 {
-                    // Пробуем определить по имени параметра
-                    string paramName = param.Definition.Name.ToLower();
-
-                    // Проверяем по ключевым словам для FamilyType
-                    string[] familyTypeKeywords = new string[]
+                    // Проверяем по имени параметра
+                    if (param.Definition != null)
                     {
-                "тип полотна двери",
-                "тип полотна",
-                "panel type",
-                "door panel type",
-                "тип панели",
-                "тип створки",
-                "leaf type"
-                    };
+                        string paramName = param.Definition.Name.ToLower();
 
-                    if (familyTypeKeywords.Any(keyword => paramName.Contains(keyword)))
-                    {
-                        return ParamKind.FamilyType;
-                    }
-
-                    // Проверяем по ключевым словам для Material
-                    string[] materialKeywords = new string[]
-                    {
-                "материал",
-                "material",
-                "отделка",
-                "finish"
-                    };
-
-                    if (materialKeywords.Any(keyword => paramName.Contains(keyword)))
-                    {
-                        return ParamKind.Material;
-                    }
-
-                    // Если есть значение, проверяем его тип
-                    if (param.HasValue)
-                    {
-                        ElementId id = param.AsElementId();
-                        if (id != null && id != ElementId.InvalidElementId)
+                        // Для Construction - приоритет FamilyType
+                        string[] familyTypeKeywords = new string[]
                         {
-                            Element elem = _doc.GetElement(id);
-                            if (elem != null)
-                            {
-                                if (elem is Material)
-                                    return ParamKind.Material;
+                            "тип полотна",
+                            "panel type",
+                            "тип панели",
+                            "тип створки",
+                            "leaf type",
+                            "выбор полотна",
+                            "полотно",
+                            "door panel",
+                            "тип полотна двери"
+                        };
 
-                                if (elem is ElementType)
+                        if (familyTypeKeywords.Any(keyword => paramName.Contains(keyword)))
+                        {
+                            // Проверяем, в какой группе находится параметр
+                            if (param.Definition != null)
+                            {
+                                ForgeTypeId groupTypeId = param.Definition.GetGroupTypeId();
+
+                                // Если это группа Construction - точно FamilyType
+                                if (groupTypeId == GroupTypeId.Construction)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"Construction FamilyType param: {param.Definition.Name}");
                                     return ParamKind.FamilyType;
+                                }
+
+                                // Если это группа Materials, но имя содержит ключевые слова FamilyType,
+                                // все равно проверяем значение
+                                if (groupTypeId == GroupTypeId.Materials)
+                                {
+                                    // Для группы Materials проверяем, что именно хранится в параметре
+                                    if (param.HasValue)
+                                    {
+                                        ElementId id = param.AsElementId();
+                                        if (id != null && id != ElementId.InvalidElementId)
+                                        {
+                                            Element elem = _doc.GetElement(id);
+                                            if (elem is Material)
+                                            {
+                                                System.Diagnostics.Debug.WriteLine($"Materials Material param: {param.Definition.Name}");
+                                                return ParamKind.Material;
+                                            }
+                                            if (elem is FamilySymbol)
+                                            {
+                                                System.Diagnostics.Debug.WriteLine($"Materials FamilyType param: {param.Definition.Name}");
+                                                return ParamKind.FamilyType;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // По умолчанию для ключевых слов FamilyType
+                            System.Diagnostics.Debug.WriteLine($"Default FamilyType param: {param.Definition.Name}");
+                            return ParamKind.FamilyType;
+                        }
+
+                        // Ключевые слова для Material
+                        string[] materialKeywords = new string[]
+                        {
+                            "материал",
+                            "material",
+                            "отделка",
+                            "finish"
+                        };
+
+                        if (materialKeywords.Any(keyword => paramName.Contains(keyword)))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Material param: {param.Definition.Name}");
+                            return ParamKind.Material;
+                        }
+
+                        // Если есть значение, проверяем его тип
+                        if (param.HasValue)
+                        {
+                            ElementId id = param.AsElementId();
+                            if (id != null && id != ElementId.InvalidElementId)
+                            {
+                                Element elem = _doc.GetElement(id);
+                                if (elem != null)
+                                {
+                                    if (elem is Material)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"Material by value: {param.Definition.Name}");
+                                        return ParamKind.Material;
+                                    }
+                                    if (elem is FamilySymbol)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"FamilyType by value: {param.Definition.Name}");
+                                        return ParamKind.FamilyType;
+                                    }
+                                }
                             }
                         }
                     }
@@ -667,85 +1109,6 @@ namespace PlugINPRO
         }
 
         // ========================= MATERIALS =========================
-        private void LoadMaterialParameters()
-        {
-            try
-            {
-                if (_currentType == null) return;
-
-                _materialParameters.Clear();
-                _tempMaterialValues.Clear();
-
-                foreach (Parameter param in _currentType.Parameters)
-                {
-                    if (IsMaterialAndFinishesParameter(param))
-                    {
-                        MaterialParameterInfo info = new MaterialParameterInfo
-                        {
-                            Name = param.Definition.Name,
-                            Parameter = param,
-                            Kind = GetParameterKind(param) // 3️⃣ Используем новый метод
-                        };
-
-                        // Получаем отображаемое значение
-                        if (param.StorageType == StorageType.ElementId && param.HasValue)
-                        {
-                            ElementId id = param.AsElementId();
-                            if (id != null && id != ElementId.InvalidElementId)
-                            {
-                                Element elem = _doc.GetElement(id);
-                                if (elem != null)
-                                    info.DisplayValue = elem.Name;
-                                else
-                                    info.DisplayValue = "<Элемент не найден>";
-                            }
-                            else
-                            {
-                                info.DisplayValue = "<Не задано>";
-                            }
-                        }
-                        else if (param.StorageType == StorageType.String && param.HasValue)
-                        {
-                            info.DisplayValue = param.AsString();
-                        }
-                        else if (param.StorageType == StorageType.Integer && param.HasValue)
-                        {
-                            info.DisplayValue = param.AsInteger().ToString();
-                        }
-                        else if (param.StorageType == StorageType.Double && param.HasValue)
-                        {
-                            double valueInFeet = param.AsDouble();
-                            if (IsLinearDimension(param))
-                            {
-                                double valueInMm = valueInFeet * 304.8;
-                                info.DisplayValue = Math.Round(valueInMm, 0).ToString();
-                            }
-                            else
-                            {
-                                info.DisplayValue = valueInFeet.ToString("F2");
-                            }
-                        }
-                        else
-                        {
-                            info.DisplayValue = "";
-                        }
-
-                        _materialParameters.Add(info);
-                    }
-                }
-
-                _materialParameters = _materialParameters.OrderBy(p => p.Name).ToList();
-                DisplayMaterialParameters();
-
-                if (_materialParameters.Count > 0)
-                    StatusText.Text = $"Найдено параметров материалов: {_materialParameters.Count}";
-            }
-            catch (Exception ex)
-            {
-                StatusText.Text = $"Ошибка загрузки материалов: {ex.Message}";
-            }
-        }
-
         private bool IsMaterialAndFinishesParameter(Parameter param)
         {
             if (param == null || param.Definition == null) return false;
@@ -759,6 +1122,106 @@ namespace PlugINPRO
             {
                 return false;
             }
+        }
+
+        private void LoadMaterialParameters()
+        {
+            try
+            {
+                if (_currentType == null) return;
+
+                _materialParameters.Clear();
+                _tempMaterialValues.Clear();
+
+                foreach (Parameter param in _currentType.Parameters)
+                {
+                    if (IsMaterialAndFinishesParameter(param))
+                    {
+                        ParamKind kind = GetParameterKind(param);
+
+                        ParameterInfo info = new ParameterInfo
+                        {
+                            Name = param.Definition.Name,
+                            Parameter = param,
+                            Kind = kind,
+                            DisplayValue = GetParameterDisplayValue(param)
+                        };
+
+                        _materialParameters.Add(info);
+                    }
+                }
+
+                _materialParameters = _materialParameters.OrderBy(p => p.Name).ToList();
+                DisplayMaterialParameters();
+
+                if (_materialParameters.Count > 0)
+                {
+                    StatusText.Text = $"Найдено параметров материалов: {_materialParameters.Count}";
+
+                    // Автоматически раскрываем группу, если в ней есть параметры
+                    if (_groupStates.ContainsKey("Materials") && !_groupStates["Materials"])
+                    {
+                        _groupStates["Materials"] = true;
+                        if (_groupControls.ContainsKey("Materials"))
+                        {
+                            var group = _groupControls["Materials"];
+                            group.Content.Visibility = WpfVisibility.Visible;
+                            UpdateGroupArrow(group.Header, true);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Ошибка загрузки материалов: {ex.Message}";
+            }
+        }
+
+        private string GetParameterDisplayValue(Parameter param)
+        {
+            try
+            {
+                if (param.StorageType == StorageType.ElementId && param.HasValue)
+                {
+                    ElementId id = param.AsElementId();
+                    if (id != null && id != ElementId.InvalidElementId)
+                    {
+                        Element elem = _doc.GetElement(id);
+                        if (elem != null)
+                            return elem.Name;
+                        else
+                            return "<Элемент не найден>";
+                    }
+                    else
+                    {
+                        return "<Не задано>";
+                    }
+                }
+                else if (param.StorageType == StorageType.String && param.HasValue)
+                {
+                    return param.AsString();
+                }
+                else if (param.StorageType == StorageType.Integer && param.HasValue)
+                {
+                    return param.AsInteger().ToString();
+                }
+                else if (param.StorageType == StorageType.Double && param.HasValue)
+                {
+                    double valueInFeet = param.AsDouble();
+                    if (IsLinearDimension(param))
+                    {
+                        double valueInMm = valueInFeet * 304.8;
+                        return Math.Round(valueInMm, 0).ToString();
+                    }
+                    else
+                    {
+                        return valueInFeet.ToString("F2");
+                    }
+                }
+            }
+            catch { }
+
+            return "";
         }
 
         private void DisplayMaterialParameters()
@@ -793,6 +1256,21 @@ namespace PlugINPRO
         }
 
         // ========================= CONSTRUCTION =========================
+        private bool IsConstructionParameter(Parameter param)
+        {
+            if (param == null || param.Definition == null) return false;
+
+            try
+            {
+                ForgeTypeId groupTypeId = param.Definition.GetGroupTypeId();
+                return groupTypeId == GroupTypeId.Construction;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private void LoadConstructionParameters()
         {
             try
@@ -806,55 +1284,17 @@ namespace PlugINPRO
                 {
                     if (IsConstructionParameter(param))
                     {
-                        MaterialParameterInfo info = new MaterialParameterInfo
+                        ParamKind kind = GetParameterKind(param);
+
+                        System.Diagnostics.Debug.WriteLine($"Construction param: {param.Definition.Name}, Kind: {kind}");
+
+                        ParameterInfo info = new ParameterInfo
                         {
                             Name = param.Definition.Name,
                             Parameter = param,
-                            Kind = GetParameterKind(param) // 3️⃣ Используем новый метод
+                            Kind = kind,
+                            DisplayValue = GetParameterDisplayValue(param)
                         };
-
-                        // Получаем отображаемое значение
-                        if (param.StorageType == StorageType.ElementId && param.HasValue)
-                        {
-                            ElementId id = param.AsElementId();
-                            if (id != null && id != ElementId.InvalidElementId)
-                            {
-                                Element elem = _doc.GetElement(id);
-                                if (elem != null)
-                                    info.DisplayValue = elem.Name;
-                                else
-                                    info.DisplayValue = "<Элемент не найден>";
-                            }
-                            else
-                            {
-                                info.DisplayValue = "<Не задано>";
-                            }
-                        }
-                        else if (param.StorageType == StorageType.String && param.HasValue)
-                        {
-                            info.DisplayValue = param.AsString();
-                        }
-                        else if (param.StorageType == StorageType.Integer && param.HasValue)
-                        {
-                            info.DisplayValue = param.AsInteger().ToString();
-                        }
-                        else if (param.StorageType == StorageType.Double && param.HasValue)
-                        {
-                            double valueInFeet = param.AsDouble();
-                            if (IsLinearDimension(param))
-                            {
-                                double valueInMm = valueInFeet * 304.8;
-                                info.DisplayValue = Math.Round(valueInMm, 0).ToString();
-                            }
-                            else
-                            {
-                                info.DisplayValue = valueInFeet.ToString("F2");
-                            }
-                        }
-                        else
-                        {
-                            info.DisplayValue = "";
-                        }
 
                         _constructionParameters.Add(info);
                     }
@@ -862,25 +1302,27 @@ namespace PlugINPRO
 
                 _constructionParameters = _constructionParameters.OrderBy(p => p.Name).ToList();
                 DisplayConstructionParameters();
+
+                if (_constructionParameters.Count > 0)
+                {
+                    StatusText.Text = $"Найдено параметров Construction: {_constructionParameters.Count}";
+
+                    // Автоматически раскрываем группу, если в ней есть параметры
+                    if (_groupStates.ContainsKey("Construction") && !_groupStates["Construction"])
+                    {
+                        _groupStates["Construction"] = true;
+                        if (_groupControls.ContainsKey("Construction"))
+                        {
+                            var group = _groupControls["Construction"];
+                            group.Content.Visibility = WpfVisibility.Visible;
+                            UpdateGroupArrow(group.Header, true);
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 StatusText.Text = $"Ошибка загрузки Construction: {ex.Message}";
-            }
-        }
-
-        private bool IsConstructionParameter(Parameter param)
-        {
-            if (param == null || param.Definition == null) return false;
-
-            try
-            {
-                ForgeTypeId groupTypeId = param.Definition.GetGroupTypeId();
-                return groupTypeId == GroupTypeId.Construction;
-            }
-            catch
-            {
-                return false;
             }
         }
 
@@ -916,7 +1358,127 @@ namespace PlugINPRO
             }
         }
 
+        // ========================= VISIBILITY =========================
+        private bool IsVisibilityParameter(Parameter param)
+        {
+            if (param == null || param.Definition == null) return false;
+
+            try
+            {
+                ForgeTypeId groupTypeId = param.Definition.GetGroupTypeId();
+                return groupTypeId == GroupTypeId.Visibility;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void LoadVisibilityParameters()
+        {
+            try
+            {
+                if (_currentType == null) return;
+
+                _visibilityParameters.Clear();
+                _tempVisibilityValues.Clear();
+
+                foreach (Parameter param in _currentType.Parameters)
+                {
+                    if (IsVisibilityParameter(param))
+                    {
+                        ParamKind kind = GetParameterKind(param);
+
+                        System.Diagnostics.Debug.WriteLine($"Visibility param: {param.Definition.Name}, Kind: {kind}");
+
+                        ParameterInfo info = new ParameterInfo
+                        {
+                            Name = param.Definition.Name,
+                            Parameter = param,
+                            Kind = kind,
+                            DisplayValue = GetParameterDisplayValue(param)
+                        };
+
+                        _visibilityParameters.Add(info);
+                    }
+                }
+
+                _visibilityParameters = _visibilityParameters.OrderBy(p => p.Name).ToList();
+                DisplayVisibilityParameters();
+
+                if (_visibilityParameters.Count > 0)
+                {
+                    StatusText.Text = $"Найдено параметров Visibility: {_visibilityParameters.Count}";
+
+                    // Автоматически раскрываем группу, если в ней есть параметры
+                    if (_groupStates.ContainsKey("Visibility") && !_groupStates["Visibility"])
+                    {
+                        _groupStates["Visibility"] = true;
+                        if (_groupControls.ContainsKey("Visibility"))
+                        {
+                            var group = _groupControls["Visibility"];
+                            group.Content.Visibility = WpfVisibility.Visible;
+                            UpdateGroupArrow(group.Header, true);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Ошибка загрузки Visibility: {ex.Message}";
+            }
+        }
+
+        private void DisplayVisibilityParameters()
+        {
+            try
+            {
+                if (VisibilityStackPanel == null) return;
+                VisibilityStackPanel.Children.Clear();
+
+                if (_visibilityParameters.Count == 0)
+                {
+                    WpfTextBlock noParamsText = new WpfTextBlock
+                    {
+                        Text = "Параметры Visibility не найдены",
+                        Foreground = Brushes.Gray,
+                        FontStyle = FontStyles.Italic,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(10)
+                    };
+                    VisibilityStackPanel.Children.Add(noParamsText);
+                    return;
+                }
+
+                foreach (var paramInfo in _visibilityParameters)
+                {
+                    CreateParameterControl(paramInfo, VisibilityStackPanel, _tempVisibilityValues);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Ошибка отображения Visibility: {ex.Message}";
+            }
+        }
+
         // ========================= OTHER =========================
+        private bool IsOtherParameter(Parameter param)
+        {
+            if (param == null || param.Definition == null) return false;
+
+            try
+            {
+                ForgeTypeId groupTypeId = param.Definition.GetGroupTypeId();
+                return groupTypeId != GroupTypeId.Materials &&
+                       groupTypeId != GroupTypeId.Construction &&
+                       groupTypeId != GroupTypeId.Visibility;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
         private void LoadOtherParameters()
         {
             try
@@ -930,55 +1492,15 @@ namespace PlugINPRO
                 {
                     if (IsOtherParameter(param))
                     {
-                        MaterialParameterInfo info = new MaterialParameterInfo
+                        ParamKind kind = GetParameterKind(param);
+
+                        ParameterInfo info = new ParameterInfo
                         {
                             Name = param.Definition.Name,
                             Parameter = param,
-                            Kind = GetParameterKind(param) // 3️⃣ Используем новый метод
+                            Kind = kind,
+                            DisplayValue = GetParameterDisplayValue(param)
                         };
-
-                        // Получаем отображаемое значение
-                        if (param.StorageType == StorageType.ElementId && param.HasValue)
-                        {
-                            ElementId id = param.AsElementId();
-                            if (id != null && id != ElementId.InvalidElementId)
-                            {
-                                Element elem = _doc.GetElement(id);
-                                if (elem != null)
-                                    info.DisplayValue = elem.Name;
-                                else
-                                    info.DisplayValue = "<Элемент не найден>";
-                            }
-                            else
-                            {
-                                info.DisplayValue = "<Не задано>";
-                            }
-                        }
-                        else if (param.StorageType == StorageType.String && param.HasValue)
-                        {
-                            info.DisplayValue = param.AsString();
-                        }
-                        else if (param.StorageType == StorageType.Integer && param.HasValue)
-                        {
-                            info.DisplayValue = param.AsInteger().ToString();
-                        }
-                        else if (param.StorageType == StorageType.Double && param.HasValue)
-                        {
-                            double valueInFeet = param.AsDouble();
-                            if (IsLinearDimension(param))
-                            {
-                                double valueInMm = valueInFeet * 304.8;
-                                info.DisplayValue = Math.Round(valueInMm, 0).ToString();
-                            }
-                            else
-                            {
-                                info.DisplayValue = valueInFeet.ToString("F2");
-                            }
-                        }
-                        else
-                        {
-                            info.DisplayValue = "";
-                        }
 
                         _otherParameters.Add(info);
                     }
@@ -986,25 +1508,27 @@ namespace PlugINPRO
 
                 _otherParameters = _otherParameters.OrderBy(p => p.Name).ToList();
                 DisplayOtherParameters();
+
+                if (_otherParameters.Count > 0)
+                {
+                    StatusText.Text = $"Найдено параметров Other: {_otherParameters.Count}";
+
+                    // Автоматически раскрываем группу, если в ней есть параметры
+                    if (_groupStates.ContainsKey("Other") && !_groupStates["Other"])
+                    {
+                        _groupStates["Other"] = true;
+                        if (_groupControls.ContainsKey("Other"))
+                        {
+                            var group = _groupControls["Other"];
+                            group.Content.Visibility = WpfVisibility.Visible;
+                            UpdateGroupArrow(group.Header, true);
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 StatusText.Text = $"Ошибка загрузки Other: {ex.Message}";
-            }
-        }
-
-        private bool IsOtherParameter(Parameter param)
-        {
-            if (param == null || param.Definition == null) return false;
-
-            try
-            {
-                ForgeTypeId groupTypeId = param.Definition.GetGroupTypeId();
-                return groupTypeId != GroupTypeId.Materials && groupTypeId != GroupTypeId.Construction;
-            }
-            catch
-            {
-                return true;
             }
         }
 
@@ -1040,7 +1564,7 @@ namespace PlugINPRO
             }
         }
 
-        // ========================= ОБЩИЕ МЕТОДЫ =========================
+        // ========================= СОЗДАНИЕ КОНТРОЛОВ ПАРАМЕТРОВ =========================
         private bool IsLinearDimension(Parameter param)
         {
             if (param == null || param.Definition == null) return false;
@@ -1066,14 +1590,13 @@ namespace PlugINPRO
             return linearKeywords.Any(keyword => paramName.Contains(keyword));
         }
 
-        // 4️⃣ ОБНОВЛЕННЫЙ МЕТОД: Создание контрола с учетом Kind
-        private void CreateParameterControl(MaterialParameterInfo paramInfo, WpfStackPanel targetPanel, Dictionary<string, Dictionary<string, object>> tempStorage)
+        private void CreateParameterControl(ParameterInfo paramInfo, WpfStackPanel targetPanel, Dictionary<string, object> tempStorage)
         {
             WpfBorder paramBorder = new WpfBorder
             {
                 Margin = new Thickness(0, 0, 0, 8),
                 Padding = new Thickness(5),
-                Background = new SolidColorBrush(WpfColor.FromRgb(245, 245, 245)),
+                Background = ColorFromRgb(245, 245, 245),
                 CornerRadius = new CornerRadius(3)
             };
 
@@ -1096,7 +1619,11 @@ namespace PlugINPRO
                     nameText.Text += " (материал)";
                     break;
                 case ParamKind.FamilyType:
-                    nameText.Text += " (тип)";
+                    nameText.Text += " (тип полотна)";
+                    if (_nestedFamilyTypes.Count > 0)
+                        nameText.ToolTip = $"Доступно типов полотна: {_nestedFamilyTypes.Count}";
+                    else
+                        nameText.ToolTip = "Не найдено семейство АС-Полотно";
                     break;
                 case ParamKind.ElementId:
                     nameText.Text += " (ID)";
@@ -1109,128 +1636,144 @@ namespace PlugINPRO
             // Создаем контрол в зависимости от типа параметра
             if (paramInfo.Kind == ParamKind.Material)
             {
-                // 4️⃣ Material - ComboBox со списком материалов
-                WpfComboBox materialCombo = new WpfComboBox
-                {
-                    Height = 30,
-                    DisplayMemberPath = "Name",
-                    Tag = new Tuple<MaterialParameterInfo, Dictionary<string, Dictionary<string, object>>>(paramInfo, tempStorage)
-                };
-
-                var materialItems = _allMaterials.Select(m => new MaterialItem { Id = m.Id, Name = m.Name }).ToList();
-                materialItems.Insert(0, new MaterialItem { Id = ElementId.InvalidElementId, Name = "<Не задано>" });
-                materialCombo.ItemsSource = materialItems;
-
-                if (paramInfo.Parameter.HasValue)
-                {
-                    ElementId currentId = paramInfo.Parameter.AsElementId();
-                    var selectedItem = materialItems.FirstOrDefault(m => m.Id == currentId);
-                    if (selectedItem != null)
-                        materialCombo.SelectedItem = selectedItem;
-                }
-
-                materialCombo.SelectionChanged += MaterialCombo_SelectionChanged;
-                WpfGrid.SetRow(materialCombo, 1);
-                paramGrid.Children.Add(materialCombo);
+                CreateMaterialCombo(paramInfo, paramGrid, tempStorage);
             }
             else if (paramInfo.Kind == ParamKind.FamilyType)
             {
-                // 4️⃣ FamilyType - ComboBox со списком типоразмеров текущего семейства
-                WpfComboBox familyTypeCombo = new WpfComboBox
-                {
-                    Height = 30,
-                    DisplayMemberPath = "Name",
-                    Tag = new Tuple<MaterialParameterInfo, Dictionary<string, Dictionary<string, object>>>(paramInfo, tempStorage)
-                };
-
-                // Получаем все типы текущего семейства
-                var familyTypes = new FilteredElementCollector(_doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .Where(f => f.Family != null && f.Family.Id == _currentType.Family.Id)
-                    .OrderBy(f => f.Name)
-                    .ToList();
-
-                var typeItems = new List<FamilyTypeItem>();
-                typeItems.Add(new FamilyTypeItem { Id = ElementId.InvalidElementId, Name = "<Не задано>" });
-
-                foreach (var ft in familyTypes)
-                {
-                    typeItems.Add(new FamilyTypeItem
-                    {
-                        Id = ft.Id,
-                        Name = ft.Name,
-                        FamilyName = ft.Family?.Name ?? ""
-                    });
-                }
-
-                familyTypeCombo.ItemsSource = typeItems;
-
-                if (paramInfo.Parameter.HasValue)
-                {
-                    ElementId currentId = paramInfo.Parameter.AsElementId();
-                    var selectedItem = typeItems.FirstOrDefault(t => t.Id == currentId);
-                    if (selectedItem != null)
-                        familyTypeCombo.SelectedItem = selectedItem;
-                }
-
-                familyTypeCombo.SelectionChanged += FamilyTypeCombo_SelectionChanged;
-                WpfGrid.SetRow(familyTypeCombo, 1);
-                paramGrid.Children.Add(familyTypeCombo);
+                CreateNestedFamilyTypeCombo(paramInfo, paramGrid, tempStorage);
             }
             else
             {
-                // String, Double, Integer, ElementId - TextBox
-                WpfTextBox paramTextBox = new WpfTextBox
-                {
-                    Height = 30,
-                    Padding = new Thickness(5),
-                    Text = paramInfo.DisplayValue ?? "",
-                    Tag = new Tuple<MaterialParameterInfo, Dictionary<string, Dictionary<string, object>>>(paramInfo, tempStorage)
-                };
-
-                if (paramInfo.Kind == ParamKind.Double && IsLinearDimension(paramInfo.Parameter))
-                {
-                    paramTextBox.ToolTip = "Введите значение в миллиметрах";
-                }
-
-                paramTextBox.TextChanged += ParameterTextBox_TextChanged;
-                WpfGrid.SetRow(paramTextBox, 1);
-                paramGrid.Children.Add(paramTextBox);
+                CreateParameterTextBox(paramInfo, paramGrid, tempStorage);
             }
 
             paramBorder.Child = paramGrid;
             targetPanel.Children.Add(paramBorder);
         }
 
-        // НОВЫЙ обработчик для FamilyType
-        private void FamilyTypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void CreateMaterialCombo(ParameterInfo paramInfo, WpfGrid parentGrid, Dictionary<string, object> tempStorage)
         {
-            if (_isUpdating) return;
-
-            WpfComboBox combo = sender as WpfComboBox;
-            if (combo == null) return;
-
-            var tag = combo.Tag as Tuple<MaterialParameterInfo, Dictionary<string, Dictionary<string, object>>>;
-            if (tag == null) return;
-
-            MaterialParameterInfo paramInfo = tag.Item1;
-            var tempStorage = tag.Item2;
-
-            FamilyTypeItem selectedItem = combo.SelectedItem as FamilyTypeItem;
-            if (selectedItem == null) return;
-
-            if (!tempStorage.ContainsKey(paramInfo.Name))
+            WpfComboBox materialCombo = new WpfComboBox
             {
-                tempStorage[paramInfo.Name] = new Dictionary<string, object>();
+                Height = 30,
+                DisplayMemberPath = "Name",
+                Tag = new Tuple<ParameterInfo, Dictionary<string, object>>(paramInfo, tempStorage)
+            };
+
+            var materialItems = _allMaterials.Select(m => new MaterialItem { Id = m.Id, Name = m.Name }).ToList();
+            materialItems.Insert(0, new MaterialItem { Id = ElementId.InvalidElementId, Name = "<Не задано>" });
+            materialCombo.ItemsSource = materialItems;
+
+            if (paramInfo.Parameter.HasValue)
+            {
+                ElementId currentId = paramInfo.Parameter.AsElementId();
+                var selectedItem = materialItems.FirstOrDefault(m => m.Id == currentId);
+                if (selectedItem != null)
+                    materialCombo.SelectedItem = selectedItem;
             }
 
-            tempStorage[paramInfo.Name]["Value"] = selectedItem.Id;
-            tempStorage[paramInfo.Name]["Kind"] = ParamKind.FamilyType;
-
-            UpdateAndRefreshButton.IsEnabled = true;
+            materialCombo.SelectionChanged += MaterialCombo_SelectionChanged;
+            WpfGrid.SetRow(materialCombo, 1);
+            parentGrid.Children.Add(materialCombo);
         }
 
+        private void CreateNestedFamilyTypeCombo(ParameterInfo paramInfo, WpfGrid parentGrid, Dictionary<string, object> tempStorage)
+        {
+            WpfComboBox combo = new WpfComboBox
+            {
+                Height = 30,
+                Tag = new Tuple<ParameterInfo, Dictionary<string, object>>(paramInfo, tempStorage),
+                DisplayMemberPath = "DisplayName"
+            };
+
+            List<FamilyTypeItem> items = new List<FamilyTypeItem>();
+
+            try
+            {
+                // Добавляем пустой элемент
+                items.Add(new FamilyTypeItem { Id = ElementId.InvalidElementId, Name = "<Не задано>", FamilyName = "" });
+
+                if (_nestedFamilyTypes.Count > 0)
+                {
+                    items.AddRange(_nestedFamilyTypes);
+                }
+
+                combo.ItemsSource = items;
+
+                // Устанавливаем текущее значение
+                if (paramInfo.Parameter.HasValue)
+                {
+                    ElementId currentId = paramInfo.Parameter.AsElementId();
+                    var selectedItem = items.FirstOrDefault(x => x.Id == currentId);
+                    if (selectedItem != null)
+                    {
+                        combo.SelectedItem = selectedItem;
+                    }
+                    else
+                    {
+                        combo.SelectedItem = items[0];
+                    }
+                }
+                else
+                {
+                    combo.SelectedItem = items[0];
+                }
+
+                if (_nestedFamilyTypes.Count > 0)
+                {
+                    combo.ToolTip = "Выберите тип полотна из семейства АС-Полотно";
+                }
+                else
+                {
+                    combo.ToolTip = "Убедитесь, что семейство АС-Полотно загружено в проект";
+                }
+
+                combo.SelectionChanged += NestedFamilyTypeCombo_SelectionChanged;
+
+                // Добавляем обработчик загрузки для принудительного обновления
+                combo.Loaded += (s, e) =>
+                {
+                    var cmb = s as WpfComboBox;
+                    if (cmb != null && cmb.Items.Count > 0 && cmb.SelectedItem == null)
+                    {
+                        cmb.SelectedIndex = 0;
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в CreateNestedFamilyTypeCombo: {ex.Message}");
+                items.Clear();
+                items.Add(new FamilyTypeItem { Id = ElementId.InvalidElementId, Name = "<Ошибка загрузки>", FamilyName = "" });
+                combo.ItemsSource = items;
+                combo.SelectedIndex = 0;
+            }
+
+            WpfGrid.SetRow(combo, 1);
+            parentGrid.Children.Add(combo);
+        }
+
+        private void CreateParameterTextBox(ParameterInfo paramInfo, WpfGrid parentGrid, Dictionary<string, object> tempStorage)
+        {
+            WpfTextBox paramTextBox = new WpfTextBox
+            {
+                Height = 30,
+                Padding = new Thickness(5),
+                Text = paramInfo.DisplayValue ?? "",
+                Tag = new Tuple<ParameterInfo, Dictionary<string, object>>(paramInfo, tempStorage)
+            };
+
+            if (paramInfo.Kind == ParamKind.Double && IsLinearDimension(paramInfo.Parameter))
+            {
+                paramTextBox.ToolTip = "Введите значение в миллиметрах";
+            }
+
+            paramTextBox.TextChanged += ParameterTextBox_TextChanged;
+            WpfGrid.SetRow(paramTextBox, 1);
+            parentGrid.Children.Add(paramTextBox);
+        }
+
+        // ========================= ОБРАБОТЧИКИ ИЗМЕНЕНИЙ ПАРАМЕТРОВ =========================
         private void MaterialCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isUpdating) return;
@@ -1238,22 +1781,47 @@ namespace PlugINPRO
             WpfComboBox combo = sender as WpfComboBox;
             if (combo == null) return;
 
-            var tag = combo.Tag as Tuple<MaterialParameterInfo, Dictionary<string, Dictionary<string, object>>>;
+            var tag = combo.Tag as Tuple<ParameterInfo, Dictionary<string, object>>;
             if (tag == null) return;
 
-            MaterialParameterInfo paramInfo = tag.Item1;
+            ParameterInfo paramInfo = tag.Item1;
             var tempStorage = tag.Item2;
 
             MaterialItem selectedItem = combo.SelectedItem as MaterialItem;
             if (selectedItem == null) return;
 
-            if (!tempStorage.ContainsKey(paramInfo.Name))
-            {
-                tempStorage[paramInfo.Name] = new Dictionary<string, object>();
-            }
+            tempStorage[paramInfo.Name] = selectedItem.Id;
 
-            tempStorage[paramInfo.Name]["Value"] = selectedItem.Id;
-            tempStorage[paramInfo.Name]["Kind"] = ParamKind.Material;
+            UpdateAndRefreshButton.IsEnabled = true;
+        }
+
+        private void NestedFamilyTypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isUpdating) return;
+
+            WpfComboBox combo = sender as WpfComboBox;
+            if (combo == null) return;
+
+            var tag = combo.Tag as Tuple<ParameterInfo, Dictionary<string, object>>;
+            if (tag == null) return;
+
+            ParameterInfo paramInfo = tag.Item1;
+            var tempStorage = tag.Item2;
+
+            FamilyTypeItem selectedItem = combo.SelectedItem as FamilyTypeItem;
+            if (selectedItem == null) return;
+
+            tempStorage[paramInfo.Name] = selectedItem.Id;
+
+            // Обновляем статус
+            if (selectedItem.Id == ElementId.InvalidElementId)
+            {
+                StatusText.Text = $"Параметр '{paramInfo.Name}': сброшен";
+            }
+            else
+            {
+                StatusText.Text = $"Параметр '{paramInfo.Name}': выбран тип '{selectedItem.DisplayName}'";
+            }
 
             UpdateAndRefreshButton.IsEnabled = true;
         }
@@ -1265,16 +1833,11 @@ namespace PlugINPRO
             WpfTextBox textBox = sender as WpfTextBox;
             if (textBox == null) return;
 
-            var tag = textBox.Tag as Tuple<MaterialParameterInfo, Dictionary<string, Dictionary<string, object>>>;
+            var tag = textBox.Tag as Tuple<ParameterInfo, Dictionary<string, object>>;
             if (tag == null) return;
 
-            MaterialParameterInfo paramInfo = tag.Item1;
+            ParameterInfo paramInfo = tag.Item1;
             var tempStorage = tag.Item2;
-
-            if (!tempStorage.ContainsKey(paramInfo.Name))
-            {
-                tempStorage[paramInfo.Name] = new Dictionary<string, object>();
-            }
 
             // Сохраняем значение в зависимости от типа
             if (paramInfo.Kind == ParamKind.Double)
@@ -1286,73 +1849,74 @@ namespace PlugINPRO
                         // Конвертируем из мм в футы
                         doubleValue = doubleValue / 304.8;
                     }
-                    tempStorage[paramInfo.Name]["Value"] = doubleValue;
+                    tempStorage[paramInfo.Name] = doubleValue;
                 }
             }
             else if (paramInfo.Kind == ParamKind.Integer)
             {
                 if (int.TryParse(textBox.Text, out int intValue))
                 {
-                    tempStorage[paramInfo.Name]["Value"] = intValue;
+                    tempStorage[paramInfo.Name] = intValue;
                 }
             }
             else
             {
-                tempStorage[paramInfo.Name]["Value"] = textBox.Text;
+                tempStorage[paramInfo.Name] = textBox.Text;
             }
-
-            tempStorage[paramInfo.Name]["Kind"] = paramInfo.Kind;
 
             UpdateAndRefreshButton.IsEnabled = true;
         }
 
+        // ========================= СОХРАНЕНИЕ ПАРАМЕТРОВ (БЕЗ ТРАНЗАКЦИИ) =========================
         private void SaveMaterialParameters()
         {
-            SaveParameters(_tempMaterialValues, _materialParameters);
+            SaveParameters(_tempMaterialValues);
         }
 
         private void SaveConstructionParameters()
         {
-            SaveParameters(_tempConstructionValues, _constructionParameters);
+            SaveParameters(_tempConstructionValues);
+        }
+
+        private void SaveVisibilityParameters()
+        {
+            SaveParameters(_tempVisibilityValues);
         }
 
         private void SaveOtherParameters()
         {
-            SaveParameters(_tempOtherValues, _otherParameters);
+            SaveParameters(_tempOtherValues);
         }
 
-        // 5️⃣ ОБНОВЛЕННЫЙ МЕТОД: Сохранение с учетом Kind
-        private void SaveParameters(Dictionary<string, Dictionary<string, object>> tempStorage, List<MaterialParameterInfo> paramList)
+        private void SaveParameters(Dictionary<string, object> tempStorage)
         {
             try
             {
                 foreach (var tempValue in tempStorage)
                 {
                     string paramName = tempValue.Key;
-                    object value = tempValue.Value["Value"];
-                    ParamKind kind = (ParamKind)tempValue.Value["Kind"];
+                    object value = tempValue.Value;
 
-                    var paramInfo = paramList.FirstOrDefault(p => p.Name == paramName);
-                    if (paramInfo != null && !paramInfo.Parameter.IsReadOnly)
+                    // Ищем параметр в типе двери
+                    Parameter param = _currentType.LookupParameter(paramName);
+
+                    if (param != null && !param.IsReadOnly)
                     {
-                        if (kind == ParamKind.Material || kind == ParamKind.FamilyType || kind == ParamKind.ElementId)
+                        if (value is ElementId elementId)
                         {
-                            if (value is ElementId)
-                            {
-                                paramInfo.Parameter.Set((ElementId)value);
-                            }
+                            param.Set(elementId);
                         }
-                        else if (kind == ParamKind.String && value is string)
+                        else if (value is double doubleValue)
                         {
-                            paramInfo.Parameter.Set((string)value);
+                            param.Set(doubleValue);
                         }
-                        else if (kind == ParamKind.Integer && value is int)
+                        else if (value is int intValue)
                         {
-                            paramInfo.Parameter.Set((int)value);
+                            param.Set(intValue);
                         }
-                        else if (kind == ParamKind.Double && value is double)
+                        else if (value is string stringValue)
                         {
-                            paramInfo.Parameter.Set((double)value);
+                            param.Set(stringValue);
                         }
                     }
                 }
@@ -1362,65 +1926,507 @@ namespace PlugINPRO
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка сохранения параметров: {ex.Message}");
+                throw;
             }
         }
 
+        // ========================= ОБНОВЛЕНИЕ ИНТЕРФЕЙСА =========================
+        private void RefreshParameters()
+        {
+            try
+            {
+                _isUpdating = true;
+
+                // Перезагружаем все параметры
+                LoadMaterialParameters();
+                LoadConstructionParameters();
+                LoadVisibilityParameters();
+                LoadOtherParameters();
+
+                _isUpdating = false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка обновления параметров: {ex.Message}");
+                _isUpdating = false;
+            }
+        }
+
+        // ========================= ПРИМЕНЕНИЕ ИЗМЕНЕНИЙ =========================
         private void ApplyChanges()
         {
+            bool typeChanged = false;
             bool widthUpdated = false;
             bool heightUpdated = false;
+            bool parametersSaved = false;
 
             using (Transaction tx = new Transaction(_doc, "Изменение параметров двери"))
             {
-                tx.Start();
-
-                if (_selectedType != null && _door.GetTypeId() != _selectedType.Id)
+                try
                 {
-                    _door.ChangeTypeId(_selectedType.Id);
-                    _currentType = _selectedType;
+                    tx.Start();
 
-                    _parameters.Clear();
-                    LoadTypeParameter(ROUGH_WIDTH_KEY, WidthTextBox, _roughWidthParam);
-                    LoadTypeParameter(ROUGH_HEIGHT_KEY, HeightTextBox, _roughHeightParam);
+                    // 1. Смена типа двери если нужно
+                    if (_selectedType != null && _door.GetTypeId() != _selectedType.Id)
+                    {
+                        string oldTypeName = _currentType?.Name ?? "неизвестно";
+                        string newTypeName = _selectedType.Name;
 
-                    LoadMaterialParameters();
-                    LoadConstructionParameters();
-                    LoadOtherParameters();
+                        StatusText.Text = $"Смена типа с '{oldTypeName}' на '{newTypeName}'...";
+
+                        // Меняем тип у экземпляра
+                        _door.ChangeTypeId(_selectedType.Id);
+                        typeChanged = true;
+
+                        // Обновляем текущий тип
+                        _currentType = _selectedType;
+
+                        // Очищаем кэш параметров и перезагружаем грубые размеры из нового типа
+                        _parameters.Clear();
+                        LoadTypeParameter(ROUGH_WIDTH_KEY, WidthTextBox, _roughWidthParam);
+                        LoadTypeParameter(ROUGH_HEIGHT_KEY, HeightTextBox, _roughHeightParam);
+
+                        StatusText.Text = $"Тип изменен на '{newTypeName}'";
+                    }
+
+                    // 2. Сохраняем грубые размеры (параметры типа)
+                    if (WidthTextBox != null && _currentType != null)
+                    {
+                        // Проверяем, изменилось ли значение
+                        if (double.TryParse(WidthTextBox.Text, out double newWidthMm))
+                        {
+                            double newWidthFeet = newWidthMm / 304.8;
+                            Parameter widthParam = _currentType.get_Parameter(_roughWidthParam);
+
+                            if (widthParam != null && !widthParam.IsReadOnly)
+                            {
+                                double currentWidthFeet = widthParam.AsDouble();
+                                if (Math.Abs(newWidthFeet - currentWidthFeet) > 0.0001) // 0.1мм точность
+                                {
+                                    widthParam.Set(newWidthFeet);
+                                    widthUpdated = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (HeightTextBox != null && _currentType != null)
+                    {
+                        // Проверяем, изменилось ли значение
+                        if (double.TryParse(HeightTextBox.Text, out double newHeightMm))
+                        {
+                            double newHeightFeet = newHeightMm / 304.8;
+                            Parameter heightParam = _currentType.get_Parameter(_roughHeightParam);
+
+                            if (heightParam != null && !heightParam.IsReadOnly)
+                            {
+                                double currentHeightFeet = heightParam.AsDouble();
+                                if (Math.Abs(newHeightFeet - currentHeightFeet) > 0.0001) // 0.1мм точность
+                                {
+                                    heightParam.Set(newHeightFeet);
+                                    heightUpdated = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Сохраняем остальные параметры (материалы, конструктив и т.д.)
+                    if (_tempMaterialValues.Count > 0)
+                    {
+                        SaveMaterialParameters();
+                        parametersSaved = true;
+                    }
+
+                    if (_tempConstructionValues.Count > 0)
+                    {
+                        SaveConstructionParameters();
+                        parametersSaved = true;
+                    }
+
+                    if (_tempVisibilityValues.Count > 0)
+                    {
+                        SaveVisibilityParameters();
+                        parametersSaved = true;
+                    }
+
+                    if (_tempOtherValues.Count > 0)
+                    {
+                        SaveOtherParameters();
+                        parametersSaved = true;
+                    }
+
+                    // 4. Обновляем экземпляр в документе (нужно для корректного отображения)
+                    if (typeChanged || widthUpdated || heightUpdated || parametersSaved)
+                    {
+                        // Регенерация документа для применения всех изменений
+                        _doc.Regenerate();
+
+                        // Перезагружаем экземпляр из документа (на случай если он изменился)
+                        _door = _doc.GetElement(_door.Id);
+
+                        tx.Commit();
+
+                        // Обновляем значения после успешного коммита
+                        _originalRoughWidth = _newRoughWidth;
+                        _originalRoughHeight = _newRoughHeight;
+
+                        // Очищаем временные хранилища
+                        _tempMaterialValues.Clear();
+                        _tempConstructionValues.Clear();
+                        _tempVisibilityValues.Clear();
+                        _tempOtherValues.Clear();
+
+                        UpdateCurrentTypeDisplay();
+
+                        // Формируем сообщение о результате
+                        List<string> changes = new List<string>();
+                        if (typeChanged) changes.Add("тип");
+                        if (widthUpdated) changes.Add("ширина");
+                        if (heightUpdated) changes.Add("высота");
+                        if (parametersSaved) changes.Add("параметры");
+
+                        string changesStr = string.Join(", ", changes);
+                        StatusText.Text = $"✓ Изменения применены: {changesStr}";
+                    }
+                    else
+                    {
+                        tx.RollBack();
+                        StatusText.Text = "Нет изменений для сохранения";
+                    }
                 }
-
-                if (WidthTextBox != null)
+                catch (Exception ex)
                 {
-                    widthUpdated = SaveTypeParameter(ROUGH_WIDTH_KEY, WidthTextBox, _roughWidthParam, true);
+                    tx.RollBack();
+                    string errorMessage = $"Ошибка при применении изменений: {ex.Message}";
+                    StatusText.Text = $"❌ {errorMessage}";
+
+                    // Детальный лог для отладки
+                    System.Diagnostics.Debug.WriteLine($"ApplyChanges Error: {ex}");
+                    if (ex.InnerException != null)
+                        System.Diagnostics.Debug.WriteLine($"Inner Exception: {ex.InnerException}");
+
+                    MessageBox.Show(errorMessage, "Ошибка",
+                                   MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-
-                if (HeightTextBox != null)
-                {
-                    heightUpdated = SaveTypeParameter(ROUGH_HEIGHT_KEY, HeightTextBox, _roughHeightParam, true);
-                }
-
-                SaveMaterialParameters();
-                SaveConstructionParameters();
-                SaveOtherParameters();
-
-                tx.Commit();
-            }
-
-            _originalRoughWidth = _newRoughWidth;
-            _originalRoughHeight = _newRoughHeight;
-            ApplyButton.IsEnabled = false;
-
-            UpdateCurrentTypeDisplay();
-
-            if (widthUpdated || heightUpdated)
-            {
-                StatusText.Text = "Параметры двери обновлены!";
-            }
-            else
-            {
-                StatusText.Text = "Не удалось обновить параметры";
             }
         }
 
+        // ========================= ВЫБОР ПАРАМЕТРА РУЧКИ (ТОЧНЫЙ ПОИСК) =========================
+        private void SelectHandleParameter(string paramName)
+        {
+            try
+            {
+                // Раскрываем группу Visibility
+                if (_groupStates.ContainsKey("Visibility") && !_groupStates["Visibility"])
+                {
+                    _groupStates["Visibility"] = true;
+
+                    if (_groupControls.ContainsKey("Visibility"))
+                    {
+                        var group = _groupControls["Visibility"];
+                        group.Content.Visibility = WpfVisibility.Visible;
+                        UpdateGroupArrow(group.Header, true);
+                    }
+                }
+
+                // Ищем ТОЧНОЕ совпадение имени параметра (без учета регистра)
+                var paramInfo = _visibilityParameters.FirstOrDefault(p =>
+                    p.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase));
+
+                if (paramInfo != null)
+                {
+                    HighlightParameterControl(paramInfo.Name);
+                    StatusText.Text = $"Редактирование: {paramInfo.Name}";
+                }
+                else
+                {
+                    StatusText.Text = $"Параметр '{paramName}' не найден";
+
+                    // Для отладки выведем все доступные параметры Visibility
+                    System.Diagnostics.Debug.WriteLine("Доступные параметры Visibility:");
+                    foreach (var p in _visibilityParameters)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  - {p.Name}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка выбора ручки: {ex.Message}");
+            }
+        }
+
+        // ========================= ВЫБОР ПАРАМЕТРА В ГРУППЕ OTHER =========================
+        private void SelectOtherParameter(string paramName)
+        {
+            try
+            {
+                // Раскрываем группу Other
+                if (_groupStates.ContainsKey("Other") && !_groupStates["Other"])
+                {
+                    _groupStates["Other"] = true;
+
+                    if (_groupControls.ContainsKey("Other"))
+                    {
+                        var group = _groupControls["Other"];
+                        group.Content.Visibility = WpfVisibility.Visible;
+                        UpdateGroupArrow(group.Header, true);
+                    }
+                }
+
+                // Ищем ТОЧНОЕ совпадение имени параметра
+                var paramInfo = _otherParameters.FirstOrDefault(p =>
+                    p.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase));
+
+                if (paramInfo != null)
+                {
+                    HighlightParameterControl(paramInfo.Name);
+                    StatusText.Text = $"Редактирование: {paramInfo.Name}";
+                }
+                else
+                {
+                    StatusText.Text = $"Параметр '{paramName}' не найден";
+
+                    // Для отладки выведем все доступные параметры Other
+                    System.Diagnostics.Debug.WriteLine("Доступные параметры Other:");
+                    foreach (var p in _otherParameters)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  - {p.Name}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка выбора параметра Other: {ex.Message}");
+            }
+        }
+
+        // ========================= ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ ВЫБОРА ПАРАМЕТРА ТИПА ПОЛОТНА =========================
+        private void SelectPanelTypeParameter(string paramName)
+        {
+            try
+            {
+                // Раскрываем группу Construction
+                if (_groupStates.ContainsKey("Construction") && !_groupStates["Construction"])
+                {
+                    _groupStates["Construction"] = true;
+                    if (_groupControls.ContainsKey("Construction"))
+                    {
+                        var group = _groupControls["Construction"];
+                        group.Content.Visibility = WpfVisibility.Visible;
+                        UpdateGroupArrow(group.Header, true);
+                    }
+                }
+
+                // Ищем параметр в Construction параметрах (сначала точное совпадение, затем частичное)
+                var paramInfo = _constructionParameters.FirstOrDefault(p =>
+                    p.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Contains(paramName) ||
+                    paramName.Contains(p.Name) ||
+                    p.Name.Contains("тип полотна") ||
+                    p.Name.Contains("panel type"));
+
+                if (paramInfo != null)
+                {
+                    // Подсвечиваем найденный параметр
+                    HighlightParameterControl(paramInfo.Name);
+                    StatusText.Text = $"Редактирование: {paramInfo.Name}";
+                }
+                else
+                {
+                    StatusText.Text = $"Параметр '{paramName}' не найден";
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка при выборе параметра: {ex.Message}");
+            }
+        }
+
+        // ========================= ПОДСВЕТКА ПАРАМЕТРА В ИНТЕРФЕЙСЕ =========================
+        private void HighlightParameterControl(string paramName)
+        {
+            try
+            {
+                // Ищем контрол в ConstructionStackPanel и VisibilityStackPanel
+                WpfStackPanel[] panels = new WpfStackPanel[]
+                {
+                    ConstructionStackPanel,
+                    VisibilityStackPanel,
+                    MaterialsStackPanel,
+                    OtherStackPanel
+                };
+
+                foreach (var panel in panels)
+                {
+                    if (panel == null) continue;
+
+                    foreach (var child in panel.Children)
+                    {
+                        if (child is WpfBorder border && border.Child is WpfGrid grid)
+                        {
+                            // Ищем TextBlock с именем параметра
+                            foreach (var gridChild in grid.Children)
+                            {
+                                if (gridChild is WpfTextBlock textBlock && textBlock.Text.Contains(paramName))
+                                {
+                                    // Подсвечиваем border
+                                    border.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(100, 255, 255, 0));
+                                    border.BorderBrush = Brushes.Orange;
+                                    border.BorderThickness = new Thickness(2);
+
+                                    // Прокручиваем к этому элементу
+                                    textBlock.BringIntoView();
+
+                                    // Сбрасываем подсветку через 2 секунды
+                                    System.Windows.Threading.DispatcherTimer timer = new System.Windows.Threading.DispatcherTimer();
+                                    timer.Interval = TimeSpan.FromSeconds(2);
+                                    timer.Tick += (s, ev) => {
+                                        border.Background = ColorFromRgb(245, 245, 245);
+                                        border.BorderBrush = Brushes.Transparent;
+                                        border.BorderThickness = new Thickness(0);
+                                        timer.Stop();
+                                    };
+                                    timer.Start();
+
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка при подсветке параметра: {ex.Message}");
+            }
+        }
+
+        // ========================= ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ЗНАЧЕНИЯ ПАРАМЕТРА =========================
+        private double GetParameterValue(string paramName, double defaultValue)
+        {
+            try
+            {
+                if (_currentType != null)
+                {
+                    Parameter param = _currentType.LookupParameter(paramName);
+                    if (param != null && param.HasValue && param.StorageType == StorageType.Double)
+                    {
+                        // Конвертируем из футов в мм
+                        return param.AsDouble() * 304.8;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка получения параметра {paramName}: {ex.Message}");
+            }
+
+            return defaultValue;
+        }
+
+        // ========================= ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ ОТРИСОВКИ РАЗМЕРОВ ОСТЕКЛЕНИЯ =========================
+        private void DrawGlassDimension(double x1, double y1, double x2, double y2,
+                                        SolidColorBrush color, double valueMm, string tooltip,
+                                        Action clickAction, double textX, double textY,
+                                        bool isHorizontal = false)
+        {
+            // Основная линия
+            System.Windows.Shapes.Line dimensionLine = new System.Windows.Shapes.Line
+            {
+                X1 = x1,
+                Y1 = y1,
+                X2 = x2,
+                Y2 = y2,
+                Stroke = color,
+                StrokeThickness = 1.5,
+                StrokeDashArray = new DoubleCollection { 3, 2 },
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = $"{tooltip}: {valueMm:F0} мм\nНажмите для изменения"
+            };
+            dimensionLine.MouseLeftButtonUp += (s, e) => clickAction();
+            DiagramCanvas.Children.Add(dimensionLine);
+
+            // Засечки
+            if (isHorizontal)
+            {
+                // Горизонтальные засечки (вертикальные линии)
+                System.Windows.Shapes.Line tick1 = new System.Windows.Shapes.Line
+                {
+                    X1 = x1,
+                    Y1 = y1 - 5,
+                    X2 = x1,
+                    Y2 = y1 + 5,
+                    Stroke = color,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                tick1.MouseLeftButtonUp += (s, e) => clickAction();
+                DiagramCanvas.Children.Add(tick1);
+
+                System.Windows.Shapes.Line tick2 = new System.Windows.Shapes.Line
+                {
+                    X1 = x2,
+                    Y1 = y2 - 5,
+                    X2 = x2,
+                    Y2 = y2 + 5,
+                    Stroke = color,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                tick2.MouseLeftButtonUp += (s, e) => clickAction();
+                DiagramCanvas.Children.Add(tick2);
+            }
+            else
+            {
+                // Вертикальные засечки (горизонтальные линии)
+                System.Windows.Shapes.Line tick1 = new System.Windows.Shapes.Line
+                {
+                    X1 = x1 - 5,
+                    Y1 = y1,
+                    X2 = x1 + 5,
+                    Y2 = y1,
+                    Stroke = color,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                tick1.MouseLeftButtonUp += (s, e) => clickAction();
+                DiagramCanvas.Children.Add(tick1);
+
+                System.Windows.Shapes.Line tick2 = new System.Windows.Shapes.Line
+                {
+                    X1 = x2 - 5,
+                    Y1 = y2,
+                    X2 = x2 + 5,
+                    Y2 = y2,
+                    Stroke = color,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                tick2.MouseLeftButtonUp += (s, e) => clickAction();
+                DiagramCanvas.Children.Add(tick2);
+            }
+
+            // Текст с значением
+            WpfTextBlock dimensionText = new WpfTextBlock
+            {
+                Text = $"{valueMm:F0} мм",
+                Foreground = color,
+                FontSize = 9,
+                FontWeight = FontWeights.Bold,
+                Background = Brushes.White,
+                Padding = new Thickness(2),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = $"{tooltip}: {valueMm:F0} мм\nНажмите для изменения"
+            };
+            dimensionText.MouseLeftButtonUp += (s, e) => clickAction();
+
+            Canvas.SetLeft(dimensionText, textX);
+            Canvas.SetTop(dimensionText, textY);
+            DiagramCanvas.Children.Add(dimensionText);
+        }
+
+        // ========================= ОТРИСОВКА СХЕМЫ =========================
         private void DrawDoorDiagram()
         {
             if (DiagramCanvas == null) return;
@@ -1430,230 +2436,870 @@ namespace PlugINPRO
             DiagramCanvas.Width = 300;
             DiagramCanvas.Height = 400;
 
-            double widthMm = _newRoughWidth;
-            double heightMm = _newRoughHeight;
+            double widthMm = 0;
+            double heightMm = 0;
 
-            if (widthMm <= 0 || heightMm <= 0)
+            try
             {
-                WpfTextBlock errorText = new WpfTextBlock
+                // Получаем размеры
+                Parameter doorWidthParam = _door?.get_Parameter(_doorWidthParam);
+                Parameter doorHeightParam = _door?.get_Parameter(_doorHeightParam);
+
+                if (doorWidthParam != null && doorWidthParam.HasValue)
                 {
-                    Text = "Некорректные размеры",
-                    Foreground = Brushes.Red,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Cursor = System.Windows.Input.Cursors.Arrow
+                    widthMm = doorWidthParam.AsDouble() * 304.8;
+                }
+                else
+                {
+                    Parameter roughWidthParam = _currentType?.get_Parameter(_roughWidthParam);
+                    if (roughWidthParam != null && roughWidthParam.HasValue)
+                        widthMm = roughWidthParam.AsDouble() * 304.8;
+                }
+
+                if (doorHeightParam != null && doorHeightParam.HasValue)
+                {
+                    heightMm = doorHeightParam.AsDouble() * 304.8;
+                }
+                else
+                {
+                    Parameter roughHeightParam = _currentType?.get_Parameter(_roughHeightParam);
+                    if (roughHeightParam != null && roughHeightParam.HasValue)
+                        heightMm = roughHeightParam.AsDouble() * 304.8;
+                }
+
+                if (widthMm <= 0 || heightMm <= 0)
+                {
+                    WpfTextBlock errorText = new WpfTextBlock
+                    {
+                        Text = "Некорректные размеры",
+                        Foreground = Brushes.Red,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Canvas.SetLeft(errorText, DiagramCanvas.Width / 2 - 50);
+                    Canvas.SetTop(errorText, DiagramCanvas.Height / 2);
+                    DiagramCanvas.Children.Add(errorText);
+                    return;
+                }
+
+                // Масштабирование
+                double maxWidth = DiagramCanvas.Width * 0.7;
+                double maxHeight = DiagramCanvas.Height * 0.7;
+
+                double scale = Math.Min(maxWidth / widthMm, maxHeight / heightMm) * 0.9;
+
+                double rectWidth = widthMm * scale;
+                double rectHeight = heightMm * scale;
+
+                double rectX = (DiagramCanvas.Width - rectWidth) / 2;
+                double rectY = (DiagramCanvas.Height - rectHeight) / 2;
+
+                // Определяем тип двери по названию семейства
+                string familyName = _currentType?.Family?.Name ?? "";
+                bool isDoubleDoor = familyName.Contains("Двупольная") || familyName.Contains("Double") || familyName.Contains("Двухстворчатая");
+                bool isSingleDoor = familyName.Contains("Однопольная") || familyName.Contains("Single") || familyName.Contains("Одностворчатая");
+
+                string doorType = isDoubleDoor ? "Двупольная" : (isSingleDoor ? "Однопольная" : "Стандартная");
+
+                // Получаем значения параметров остекления для левой створки (в мм)
+                double leftTopOffsetMm = GetParameterValue("Рама двери1_Ширина вверху", 20);
+                double leftBottomOffsetMm = GetParameterValue("Рама двери1_Ширина внизу", 20);
+                double leftLeftOffsetMm = GetParameterValue("Рама двери1_Ширина слева", 20);
+                double leftRightOffsetMm = GetParameterValue("Рама двери1_Ширина справа", 20);
+
+                // Получаем значения параметров остекления для правой створки (в мм)
+                double rightTopOffsetMm = GetParameterValue("Рама двери2_Ширина вверху", 20);
+                double rightBottomOffsetMm = GetParameterValue("Рама двери2_Ширина внизу", 20);
+                double rightLeftOffsetMm = GetParameterValue("Рама двери2_Ширина слева", 20);
+                double rightRightOffsetMm = GetParameterValue("Рама двери2_Ширина справа", 20);
+
+                // Цвет дерева для полотна
+                SolidColorBrush woodColor = new SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 120, 80)); // Коричневый
+
+                // Цвет для обводки створок и наличников (темно-коричневый)
+                SolidColorBrush darkBrownBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(101, 67, 33));
+
+                // Цвет для остекления - голубой полупрозрачный
+                SolidColorBrush glassColor = new SolidColorBrush(System.Windows.Media.Color.FromArgb(150, 173, 216, 230)); // LightBlue с прозрачностью
+
+                // Цвет для остекления при наведении - более яркий голубой
+                SolidColorBrush glassHoverColor = new SolidColorBrush(System.Windows.Media.Color.FromArgb(200, 100, 150, 255));
+
+                // Цвет для размерных линий остекления - зеленый для левой створки, сине-зеленый для правой
+                SolidColorBrush leftGlassDimColor = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 150, 0)); // Зеленый
+                SolidColorBrush rightGlassDimColor = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 100, 150)); // Сине-зеленый
+
+                // Рисуем основу двери (дерево)
+                WpfRectangle doorRect = new WpfRectangle
+                {
+                    Width = rectWidth,
+                    Height = rectHeight,
+                    Stroke = Brushes.Black,
+                    StrokeThickness = 2,
+                    Fill = woodColor,
+                    Opacity = 0.8,
+                    Cursor = System.Windows.Input.Cursors.Hand
                 };
-                Canvas.SetLeft(errorText, DiagramCanvas.Width / 2 - 50);
-                Canvas.SetTop(errorText, DiagramCanvas.Height / 2);
-                DiagramCanvas.Children.Add(errorText);
-                return;
+
+                string sourceInfo = (doorWidthParam != null && doorWidthParam.HasValue) ? "системные" : "из типа";
+                ToolTipService.SetToolTip(doorRect, $"Ширина: {widthMm:F0} мм\nВысота: {heightMm:F0} мм\nТип: {doorType}\n(размеры: {sourceInfo})");
+
+                Canvas.SetLeft(doorRect, rectX);
+                Canvas.SetTop(doorRect, rectY);
+                DiagramCanvas.Children.Add(doorRect);
+
+                // Рисуем наличники ВНУТРИ полотна - вплотную к границам
+                double casingThickness = 5; // Толщина наличника
+
+                // Верхний наличник (горизонтальный) - от левого до правого края
+                WpfRectangle topCasing = new WpfRectangle
+                {
+                    Width = rectWidth,
+                    Height = casingThickness,
+                    Stroke = darkBrownBrush,
+                    StrokeThickness = 1,
+                    Fill = darkBrownBrush,
+                    Opacity = 0.9
+                };
+                Canvas.SetLeft(topCasing, rectX);
+                Canvas.SetTop(topCasing, rectY);
+                DiagramCanvas.Children.Add(topCasing);
+
+                // Нижний наличник (горизонтальный) - от левого до правого края
+                WpfRectangle bottomCasing = new WpfRectangle
+                {
+                    Width = rectWidth,
+                    Height = casingThickness,
+                    Stroke = darkBrownBrush,
+                    StrokeThickness = 1,
+                    Fill = darkBrownBrush,
+                    Opacity = 0.9
+                };
+                Canvas.SetLeft(bottomCasing, rectX);
+                Canvas.SetTop(bottomCasing, rectY + rectHeight - casingThickness);
+                DiagramCanvas.Children.Add(bottomCasing);
+
+                // Левый наличник (вертикальный) - от верха до низа
+                WpfRectangle leftCasing = new WpfRectangle
+                {
+                    Width = casingThickness,
+                    Height = rectHeight,
+                    Stroke = darkBrownBrush,
+                    StrokeThickness = 1,
+                    Fill = darkBrownBrush,
+                    Opacity = 0.9
+                };
+                Canvas.SetLeft(leftCasing, rectX);
+                Canvas.SetTop(leftCasing, rectY);
+                DiagramCanvas.Children.Add(leftCasing);
+
+                // Правый наличник (вертикальный) - от верха до низа
+                WpfRectangle rightCasing = new WpfRectangle
+                {
+                    Width = casingThickness,
+                    Height = rectHeight,
+                    Stroke = darkBrownBrush,
+                    StrokeThickness = 1,
+                    Fill = darkBrownBrush,
+                    Opacity = 0.9
+                };
+                Canvas.SetLeft(rightCasing, rectX + rectWidth - casingThickness);
+                Canvas.SetTop(rightCasing, rectY);
+                DiagramCanvas.Children.Add(rightCasing);
+
+                // Рисуем дверь в зависимости от типа
+                if (isDoubleDoor)
+                {
+                    // Двупольная дверь - делим пополам
+                    double halfWidth = rectWidth / 2;
+                    double midX = rectX + halfWidth;
+
+                    // Обводка левой створки (поверх дерева)
+                    WpfRectangle leftLeaf = new WpfRectangle
+                    {
+                        Width = halfWidth - 1,
+                        Height = rectHeight,
+                        Stroke = darkBrownBrush,
+                        StrokeThickness = 1.5,
+                        Fill = Brushes.Transparent
+                    };
+                    Canvas.SetLeft(leftLeaf, rectX);
+                    Canvas.SetTop(leftLeaf, rectY);
+                    DiagramCanvas.Children.Add(leftLeaf);
+
+                    // Обводка правой створки
+                    WpfRectangle rightLeaf = new WpfRectangle
+                    {
+                        Width = halfWidth - 1,
+                        Height = rectHeight,
+                        Stroke = darkBrownBrush,
+                        StrokeThickness = 1.5,
+                        Fill = Brushes.Transparent
+                    };
+                    Canvas.SetLeft(rightLeaf, rectX + halfWidth + 1);
+                    Canvas.SetTop(rightLeaf, rectY);
+                    DiagramCanvas.Children.Add(rightLeaf);
+
+                    // Вертикальная линия между створками
+                    System.Windows.Shapes.Line dividerLine = new System.Windows.Shapes.Line
+                    {
+                        X1 = midX,
+                        Y1 = rectY,
+                        X2 = midX,
+                        Y2 = rectY + rectHeight,
+                        Stroke = darkBrownBrush,
+                        StrokeThickness = 2,
+                        StrokeDashArray = new DoubleCollection { 2, 2 }
+                    };
+                    DiagramCanvas.Children.Add(dividerLine);
+
+                    // ========== ОСТЕКЛЕНИЕ ЛЕВОЙ СТВОРКИ ==========
+
+                    // Вычисляем позицию остекления левой створки на основе параметров (в пикселях)
+                    double leftGlassTopY = rectY + (leftTopOffsetMm * scale);
+                    double leftGlassBottomY = rectY + rectHeight - (leftBottomOffsetMm * scale);
+                    double leftGlassLeftX = rectX + (leftLeftOffsetMm * scale);
+                    double leftGlassRightX = rectX + halfWidth - (leftRightOffsetMm * scale);
+
+                    // Размеры остекления левой створки
+                    double leftGlassHeight = leftGlassBottomY - leftGlassTopY;
+                    double leftGlassWidth = leftGlassRightX - leftGlassLeftX;
+
+                    // Проверяем корректность размеров
+                    if (leftGlassHeight <= 0 || leftGlassWidth <= 0)
+                    {
+                        // Используем значения по умолчанию
+                        leftGlassHeight = rectHeight - 40;
+                        leftGlassWidth = halfWidth * 0.6;
+                        leftGlassTopY = rectY + 20;
+                        leftGlassLeftX = rectX + (halfWidth - leftGlassWidth) / 2;
+                        leftGlassRightX = leftGlassLeftX + leftGlassWidth;
+                        leftGlassBottomY = leftGlassTopY + leftGlassHeight;
+                    }
+
+                    // Остекление левой створки
+                    WpfRectangle leftGlassRect = new WpfRectangle
+                    {
+                        Width = leftGlassWidth,
+                        Height = leftGlassHeight,
+                        Stroke = Brushes.DarkBlue,
+                        StrokeThickness = 1.5,
+                        Fill = glassColor,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Tag = "LeftGlass",
+                        ToolTip = $"Левая створка - остекление\nВерх: {leftTopOffsetMm:F0} мм\nНиз: {leftBottomOffsetMm:F0} мм\nЛево: {leftLeftOffsetMm:F0} мм\nПраво: {leftRightOffsetMm:F0} мм"
+                    };
+
+                    // Добавляем обработчики событий для левого остекления
+                    leftGlassRect.MouseEnter += (s, e) => {
+                        leftGlassRect.Fill = glassHoverColor;
+                        leftGlassRect.Stroke = Brushes.Blue;
+                        leftGlassRect.StrokeThickness = 2;
+                        StatusText.Text = "Нажмите чтобы выбрать тип левой створки";
+                    };
+
+                    leftGlassRect.MouseLeave += (s, e) => {
+                        leftGlassRect.Fill = glassColor;
+                        leftGlassRect.Stroke = Brushes.DarkBlue;
+                        leftGlassRect.StrokeThickness = 1.5;
+                        StatusText.Text = "Готово";
+                    };
+
+                    leftGlassRect.MouseLeftButtonUp += (s, e) => {
+                        SelectPanelTypeParameter("Тип полотна двери 1");
+                    };
+
+                    Canvas.SetLeft(leftGlassRect, leftGlassLeftX);
+                    Canvas.SetTop(leftGlassRect, leftGlassTopY);
+                    DiagramCanvas.Children.Add(leftGlassRect);
+
+                    // Крестик на левом остеклении
+                    System.Windows.Shapes.Line leftGlassLine1 = new System.Windows.Shapes.Line
+                    {
+                        X1 = leftGlassLeftX,
+                        Y1 = leftGlassTopY,
+                        X2 = leftGlassLeftX + leftGlassWidth,
+                        Y2 = leftGlassTopY + leftGlassHeight,
+                        Stroke = Brushes.White,
+                        StrokeThickness = 1.5,
+                        IsHitTestVisible = false
+                    };
+                    DiagramCanvas.Children.Add(leftGlassLine1);
+
+                    System.Windows.Shapes.Line leftGlassLine2 = new System.Windows.Shapes.Line
+                    {
+                        X1 = leftGlassLeftX + leftGlassWidth,
+                        Y1 = leftGlassTopY,
+                        X2 = leftGlassLeftX,
+                        Y2 = leftGlassTopY + leftGlassHeight,
+                        Stroke = Brushes.White,
+                        StrokeThickness = 1.5,
+                        IsHitTestVisible = false
+                    };
+                    DiagramCanvas.Children.Add(leftGlassLine2);
+
+                    // ========== ИНТЕРАКТИВНЫЕ РАЗМЕРЫ ОСТЕКЛЕНИЯ ЛЕВОЙ СТВОРКИ ==========
+
+                    // Верхний отступ левой створки - Рама двери1_Ширина вверху
+                    DrawGlassDimension(
+                        rectX - 25, rectY, rectX - 25, leftGlassTopY,
+                        leftGlassDimColor, leftTopOffsetMm, "Левая створка - верхний отступ",
+                        () => SelectOtherParameter("Рама двери1_Ширина вверху"),
+                        rectX - 60, rectY + (leftGlassTopY - rectY) / 2 - 10
+                    );
+
+                    // Нижний отступ левой створки - Рама двери1_Ширина внизу
+                    DrawGlassDimension(
+                        rectX - 25, leftGlassBottomY, rectX - 25, rectY + rectHeight,
+                        leftGlassDimColor, leftBottomOffsetMm, "Левая створка - нижний отступ",
+                        () => SelectOtherParameter("Рама двери1_Ширина внизу"),
+                        rectX - 60, leftGlassBottomY + ((rectY + rectHeight) - leftGlassBottomY) / 2 - 10
+                    );
+
+                    // Левый отступ левой створки - Рама двери1_Ширина слева
+                    DrawGlassDimension(
+                        rectX, rectY - 25, leftGlassLeftX, rectY - 25,
+                        leftGlassDimColor, leftLeftOffsetMm, "Левая створка - левый отступ",
+                        () => SelectOtherParameter("Рама двери1_Ширина слева"),
+                        rectX + (leftGlassLeftX - rectX) / 2 - 20, rectY - 45,
+                        true
+                    );
+
+                    // Правый отступ левой створки - Рама двери1_Ширина справа
+                    DrawGlassDimension(
+                        leftGlassRightX, rectY - 25, midX, rectY - 25,
+                        leftGlassDimColor, leftRightOffsetMm, "Левая створка - правый отступ",
+                        () => SelectOtherParameter("Рама двери1_Ширина справа"),
+                        leftGlassRightX + (midX - leftGlassRightX) / 2 - 20, rectY - 45,
+                        true
+                    );
+
+                    // ========== ОСТЕКЛЕНИЕ ПРАВОЙ СТВОРКИ ==========
+
+                    // Вычисляем позицию остекления правой створки на основе параметров (в пикселях)
+                    double rightGlassTopY = rectY + (rightTopOffsetMm * scale);
+                    double rightGlassBottomY = rectY + rectHeight - (rightBottomOffsetMm * scale);
+                    double rightGlassLeftX = midX + 1 + (rightLeftOffsetMm * scale);
+                    double rightGlassRightX = rectX + rectWidth - (rightRightOffsetMm * scale);
+
+                    // Размеры остекления правой створки
+                    double rightGlassHeight = rightGlassBottomY - rightGlassTopY;
+                    double rightGlassWidth = rightGlassRightX - rightGlassLeftX;
+
+                    // Проверяем корректность размеров
+                    if (rightGlassHeight <= 0 || rightGlassWidth <= 0)
+                    {
+                        // Используем значения по умолчанию
+                        rightGlassHeight = rectHeight - 40;
+                        rightGlassWidth = halfWidth * 0.6;
+                        rightGlassTopY = rectY + 20;
+                        rightGlassLeftX = midX + 1 + (halfWidth - rightGlassWidth) / 2;
+                        rightGlassRightX = rightGlassLeftX + rightGlassWidth;
+                        rightGlassBottomY = rightGlassTopY + rightGlassHeight;
+                    }
+
+                    // Остекление правой створки
+                    WpfRectangle rightGlassRect = new WpfRectangle
+                    {
+                        Width = rightGlassWidth,
+                        Height = rightGlassHeight,
+                        Stroke = Brushes.DarkBlue,
+                        StrokeThickness = 1.5,
+                        Fill = glassColor,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Tag = "RightGlass",
+                        ToolTip = $"Правая створка - остекление\nВерх: {rightTopOffsetMm:F0} мм\nНиз: {rightBottomOffsetMm:F0} мм\nЛево: {rightLeftOffsetMm:F0} мм\nПраво: {rightRightOffsetMm:F0} мм"
+                    };
+
+                    // Добавляем обработчики событий для правого остекления
+                    rightGlassRect.MouseEnter += (s, e) => {
+                        rightGlassRect.Fill = glassHoverColor;
+                        rightGlassRect.Stroke = Brushes.Blue;
+                        rightGlassRect.StrokeThickness = 2;
+                        StatusText.Text = "Нажмите чтобы выбрать тип правой створки";
+                    };
+
+                    rightGlassRect.MouseLeave += (s, e) => {
+                        rightGlassRect.Fill = glassColor;
+                        rightGlassRect.Stroke = Brushes.DarkBlue;
+                        rightGlassRect.StrokeThickness = 1.5;
+                        StatusText.Text = "Готово";
+                    };
+
+                    rightGlassRect.MouseLeftButtonUp += (s, e) => {
+                        SelectPanelTypeParameter("Тип полотна двери 2");
+                    };
+
+                    Canvas.SetLeft(rightGlassRect, rightGlassLeftX);
+                    Canvas.SetTop(rightGlassRect, rightGlassTopY);
+                    DiagramCanvas.Children.Add(rightGlassRect);
+
+                    // Крестик на правом остеклении
+                    System.Windows.Shapes.Line rightGlassLine1 = new System.Windows.Shapes.Line
+                    {
+                        X1 = rightGlassLeftX,
+                        Y1 = rightGlassTopY,
+                        X2 = rightGlassLeftX + rightGlassWidth,
+                        Y2 = rightGlassTopY + rightGlassHeight,
+                        Stroke = Brushes.White,
+                        StrokeThickness = 1.5,
+                        IsHitTestVisible = false
+                    };
+                    DiagramCanvas.Children.Add(rightGlassLine1);
+
+                    System.Windows.Shapes.Line rightGlassLine2 = new System.Windows.Shapes.Line
+                    {
+                        X1 = rightGlassLeftX + rightGlassWidth,
+                        Y1 = rightGlassTopY,
+                        X2 = rightGlassLeftX,
+                        Y2 = rightGlassTopY + rightGlassHeight,
+                        Stroke = Brushes.White,
+                        StrokeThickness = 1.5,
+                        IsHitTestVisible = false
+                    };
+                    DiagramCanvas.Children.Add(rightGlassLine2);
+
+                    // ========== ИНТЕРАКТИВНЫЕ РАЗМЕРЫ ОСТЕКЛЕНИЯ ПРАВОЙ СТВОРКИ ==========
+
+                    // Верхний отступ правой створки - Рама двери2_Ширина вверху
+                    DrawGlassDimension(
+                        rectX + rectWidth + 25, rectY, rectX + rectWidth + 25, rightGlassTopY,
+                        rightGlassDimColor, rightTopOffsetMm, "Правая створка - верхний отступ",
+                        () => SelectOtherParameter("Рама двери2_Ширина вверху"),
+                        rectX + rectWidth + 30, rectY + (rightGlassTopY - rectY) / 2 - 10
+                    );
+
+                    // Нижний отступ правой створки - Рама двери2_Ширина внизу
+                    DrawGlassDimension(
+                        rectX + rectWidth + 25, rightGlassBottomY, rectX + rectWidth + 25, rectY + rectHeight,
+                        rightGlassDimColor, rightBottomOffsetMm, "Правая створка - нижний отступ",
+                        () => SelectOtherParameter("Рама двери2_Ширина внизу"),
+                        rectX + rectWidth + 30, rightGlassBottomY + ((rectY + rectHeight) - rightGlassBottomY) / 2 - 10
+                    );
+
+                    // Левый отступ правой створки - Рама двери2_Ширина слева
+                    DrawGlassDimension(
+                        midX + 1, rectY - 25, rightGlassLeftX, rectY - 25,
+                        rightGlassDimColor, rightLeftOffsetMm, "Правая створка - левый отступ",
+                        () => SelectOtherParameter("Рама двери2_Ширина слева"),
+                        midX + 1 + (rightGlassLeftX - (midX + 1)) / 2 - 20, rectY - 45,
+                        true
+                    );
+
+                    // Правый отступ правой створки - Рама двери2_Ширина справа
+                    DrawGlassDimension(
+                        rightGlassRightX, rectY - 25, rectX + rectWidth, rectY - 25,
+                        rightGlassDimColor, rightRightOffsetMm, "Правая створка - правый отступ",
+                        () => SelectOtherParameter("Рама двери2_Ширина справа"),
+                        rightGlassRightX + ((rectX + rectWidth) - rightGlassRightX) / 2 - 20, rectY - 45,
+                        true
+                    );
+
+                    // РУЧКИ ДЛЯ ДВУПОЛЬНОЙ ДВЕРИ
+                    System.Windows.Shapes.Ellipse leftHandle = new System.Windows.Shapes.Ellipse
+                    {
+                        Width = 10,
+                        Height = 10,
+                        Fill = Brushes.Gold,
+                        Stroke = Brushes.Black,
+                        StrokeThickness = 1,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Tag = "LeftHandle"
+                    };
+
+                    leftHandle.MouseEnter += (s, e) =>
+                    {
+                        leftHandle.Fill = Brushes.Orange;
+                        leftHandle.StrokeThickness = 2;
+                        StatusText.Text = "Нажмите чтобы изменить ручку полотна 1";
+                    };
+
+                    leftHandle.MouseLeave += (s, e) =>
+                    {
+                        leftHandle.Fill = Brushes.Gold;
+                        leftHandle.StrokeThickness = 1;
+                        StatusText.Text = "Готово";
+                    };
+
+                    leftHandle.MouseLeftButtonUp += (s, e) =>
+                    {
+                        SelectHandleParameter("Ручка полотна 1");
+                    };
+
+                    Canvas.SetLeft(leftHandle, rectX + halfWidth - 18);
+                    Canvas.SetTop(leftHandle, rectY + rectHeight / 2 - 5);
+                    DiagramCanvas.Children.Add(leftHandle);
+
+                    System.Windows.Shapes.Ellipse rightHandle = new System.Windows.Shapes.Ellipse
+                    {
+                        Width = 10,
+                        Height = 10,
+                        Fill = Brushes.Gold,
+                        Stroke = Brushes.Black,
+                        StrokeThickness = 1,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Tag = "RightHandle"
+                    };
+
+                    rightHandle.MouseEnter += (s, e) =>
+                    {
+                        rightHandle.Fill = Brushes.Orange;
+                        rightHandle.StrokeThickness = 2;
+                        StatusText.Text = "Нажмите чтобы изменить ручку полотна 2";
+                    };
+
+                    rightHandle.MouseLeave += (s, e) =>
+                    {
+                        rightHandle.Fill = Brushes.Gold;
+                        rightHandle.StrokeThickness = 1;
+                        StatusText.Text = "Готово";
+                    };
+
+                    rightHandle.MouseLeftButtonUp += (s, e) =>
+                    {
+                        SelectHandleParameter("Ручка полотна 2");
+                    };
+
+                    Canvas.SetLeft(rightHandle, rectX + halfWidth + 10);
+                    Canvas.SetTop(rightHandle, rectY + rectHeight / 2 - 5);
+                    DiagramCanvas.Children.Add(rightHandle);
+                }
+                else
+                {
+                    // Однопольная или стандартная дверь - ОДНО ОСТЕКЛЕНИЕ С РАЗМЕРАМИ ИЗ ПАРАМЕТРОВ
+
+                    // Вычисляем позицию остекления на основе параметров (в пикселях)
+                    double glassTopY = rectY + (GetParameterValue("Рама двери_Ширина вверху", 20) * scale);
+                    double glassBottomY = rectY + rectHeight - (GetParameterValue("Рама двери_Ширина внизу", 20) * scale);
+                    double glassLeftX = rectX + (GetParameterValue("Рама двери_Ширина слева", 20) * scale);
+                    double glassRightX = rectX + rectWidth - (GetParameterValue("Рама двери_Ширина справа", 20) * scale);
+
+                    // Размеры остекления
+                    double glassHeight = glassBottomY - glassTopY;
+                    double glassWidth = glassRightX - glassLeftX;
+
+                    // Проверяем корректность размеров
+                    if (glassHeight <= 0 || glassWidth <= 0)
+                    {
+                        // Используем значения по умолчанию
+                        glassHeight = rectHeight - 40;
+                        glassWidth = rectWidth * 0.6;
+                        glassTopY = rectY + 20;
+                        glassLeftX = rectX + (rectWidth - glassWidth) / 2;
+                        glassRightX = glassLeftX + glassWidth;
+                        glassBottomY = glassTopY + glassHeight;
+                    }
+
+                    WpfRectangle glassRect = new WpfRectangle
+                    {
+                        Width = glassWidth,
+                        Height = glassHeight,
+                        Stroke = Brushes.DarkBlue,
+                        StrokeThickness = 1.5,
+                        Fill = glassColor,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Tag = "SingleGlass",
+                        ToolTip = $"Остекление\nВерх: {GetParameterValue("Рама двери_Ширина вверху", 20):F0} мм\nНиз: {GetParameterValue("Рама двери_Ширина внизу", 20):F0} мм\nЛево: {GetParameterValue("Рама двери_Ширина слева", 20):F0} мм\nПраво: {GetParameterValue("Рама двери_Ширина справа", 20):F0} мм"
+                    };
+
+                    // Добавляем обработчики событий для остекления
+                    glassRect.MouseEnter += (s, e) => {
+                        glassRect.Fill = glassHoverColor;
+                        glassRect.Stroke = Brushes.Blue;
+                        glassRect.StrokeThickness = 2;
+                        StatusText.Text = "Нажмите чтобы выбрать тип полотна двери";
+                    };
+
+                    glassRect.MouseLeave += (s, e) => {
+                        glassRect.Fill = glassColor;
+                        glassRect.Stroke = Brushes.DarkBlue;
+                        glassRect.StrokeThickness = 1.5;
+                        StatusText.Text = "Готово";
+                    };
+
+                    glassRect.MouseLeftButtonUp += (s, e) => {
+                        SelectPanelTypeParameter("Тип полотна двери");
+                    };
+
+                    Canvas.SetLeft(glassRect, glassLeftX);
+                    Canvas.SetTop(glassRect, glassTopY);
+                    DiagramCanvas.Children.Add(glassRect);
+
+                    // Крестики на остеклении
+                    System.Windows.Shapes.Line glassLine1 = new System.Windows.Shapes.Line
+                    {
+                        X1 = glassLeftX,
+                        Y1 = glassTopY,
+                        X2 = glassLeftX + glassWidth,
+                        Y2 = glassTopY + glassHeight,
+                        Stroke = Brushes.White,
+                        StrokeThickness = 1.5,
+                        IsHitTestVisible = false
+                    };
+                    DiagramCanvas.Children.Add(glassLine1);
+
+                    System.Windows.Shapes.Line glassLine2 = new System.Windows.Shapes.Line
+                    {
+                        X1 = glassLeftX + glassWidth,
+                        Y1 = glassTopY,
+                        X2 = glassLeftX,
+                        Y2 = glassTopY + glassHeight,
+                        Stroke = Brushes.White,
+                        StrokeThickness = 1.5,
+                        IsHitTestVisible = false
+                    };
+                    DiagramCanvas.Children.Add(glassLine2);
+
+                    // ========== ИНТЕРАКТИВНЫЕ РАЗМЕРЫ ОСТЕКЛЕНИЯ ==========
+
+                    SolidColorBrush glassDimColor = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 150, 0)); // Зеленый
+
+                    // Верхний отступ - Рама двери_Ширина вверху
+                    DrawGlassDimension(
+                        rectX - 25, rectY, rectX - 25, glassTopY,
+                        glassDimColor, GetParameterValue("Рама двери_Ширина вверху", 20), "Верхний отступ",
+                        () => SelectOtherParameter("Рама двери_Ширина вверху"),
+                        rectX - 60, rectY + (glassTopY - rectY) / 2 - 10
+                    );
+
+                    // Нижний отступ - Рама двери_Ширина внизу
+                    DrawGlassDimension(
+                        rectX - 25, glassBottomY, rectX - 25, rectY + rectHeight,
+                        glassDimColor, GetParameterValue("Рама двери_Ширина внизу", 20), "Нижний отступ",
+                        () => SelectOtherParameter("Рама двери_Ширина внизу"),
+                        rectX - 60, glassBottomY + ((rectY + rectHeight) - glassBottomY) / 2 - 10
+                    );
+
+                    // Левый отступ - Рама двери_Ширина слева
+                    DrawGlassDimension(
+                        rectX, rectY - 25, glassLeftX, rectY - 25,
+                        glassDimColor, GetParameterValue("Рама двери_Ширина слева", 20), "Левый отступ",
+                        () => SelectOtherParameter("Рама двери_Ширина слева"),
+                        rectX + (glassLeftX - rectX) / 2 - 20, rectY - 45,
+                        true
+                    );
+
+                    // Правый отступ - Рама двери_Ширина справа
+                    DrawGlassDimension(
+                        glassRightX, rectY - 25, rectX + rectWidth, rectY - 25,
+                        glassDimColor, GetParameterValue("Рама двери_Ширина справа", 20), "Правый отступ",
+                        () => SelectOtherParameter("Рама двери_Ширина справа"),
+                        glassRightX + ((rectX + rectWidth) - glassRightX) / 2 - 20, rectY - 45,
+                        true
+                    );
+
+                    // РУЧКА ДЛЯ ОДНОПОЛЬНОЙ ДВЕРИ
+                    System.Windows.Shapes.Ellipse handle = new System.Windows.Shapes.Ellipse
+                    {
+                        Width = 10,
+                        Height = 10,
+                        Fill = Brushes.Gold,
+                        Stroke = Brushes.Black,
+                        StrokeThickness = 1.5,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Tag = "SingleHandle"
+                    };
+
+                    handle.MouseEnter += (s, e) =>
+                    {
+                        handle.Fill = Brushes.Orange;
+                        handle.StrokeThickness = 2.5;
+                        StatusText.Text = "Нажмите чтобы изменить ручку";
+                    };
+
+                    handle.MouseLeave += (s, e) =>
+                    {
+                        handle.Fill = Brushes.Gold;
+                        handle.StrokeThickness = 1.5;
+                        StatusText.Text = "Готово";
+                    };
+
+                    handle.MouseLeftButtonUp += (s, e) =>
+                    {
+                        SelectHandleParameter("Ручка");
+                    };
+
+                    if (isSingleDoor)
+                    {
+                        Canvas.SetLeft(handle, rectX + rectWidth - 20);
+                    }
+                    else
+                    {
+                        Canvas.SetLeft(handle, rectX + rectWidth / 2 - 5);
+                    }
+                    Canvas.SetTop(handle, rectY + rectHeight / 2 - 5);
+                    DiagramCanvas.Children.Add(handle);
+                }
+
+                // Добавляем основные размерные линии и текст (ширина/высота)
+                double fontSize = 12;
+                double offset = 5;
+
+                // Линии ширины
+                System.Windows.Shapes.Line widthLine1 = new System.Windows.Shapes.Line
+                {
+                    X1 = rectX,
+                    Y1 = rectY + rectHeight + offset,
+                    X2 = rectX + rectWidth,
+                    Y2 = rectY + rectHeight + offset,
+                    Stroke = Brushes.Red,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Изменить ширину"
+                };
+                widthLine1.MouseLeftButtonUp += (s, ev) => {
+                    WidthTextBox.Focus();
+                    WidthTextBox.SelectAll();
+                };
+
+                System.Windows.Shapes.Line widthLine2 = new System.Windows.Shapes.Line
+                {
+                    X1 = rectX,
+                    Y1 = rectY + rectHeight + offset - 3,
+                    X2 = rectX,
+                    Y2 = rectY + rectHeight + offset + 3,
+                    Stroke = Brushes.Red,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Изменить ширину"
+                };
+                widthLine2.MouseLeftButtonUp += (s, ev) => {
+                    WidthTextBox.Focus();
+                    WidthTextBox.SelectAll();
+                };
+
+                System.Windows.Shapes.Line widthLine3 = new System.Windows.Shapes.Line
+                {
+                    X1 = rectX + rectWidth,
+                    Y1 = rectY + rectHeight + offset - 3,
+                    X2 = rectX + rectWidth,
+                    Y2 = rectY + rectHeight + offset + 3,
+                    Stroke = Brushes.Red,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Изменить ширину"
+                };
+                widthLine3.MouseLeftButtonUp += (s, ev) => {
+                    WidthTextBox.Focus();
+                    WidthTextBox.SelectAll();
+                };
+
+                DiagramCanvas.Children.Add(widthLine1);
+                DiagramCanvas.Children.Add(widthLine2);
+                DiagramCanvas.Children.Add(widthLine3);
+
+                // Текст ширины
+                WpfTextBlock widthText = new WpfTextBlock
+                {
+                    Text = $"{widthMm:F0} мм",
+                    Foreground = Brushes.Red,
+                    FontSize = fontSize,
+                    FontWeight = FontWeights.Bold,
+                    Background = Brushes.White,
+                    Padding = new Thickness(2),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Изменить ширину"
+                };
+                widthText.MouseLeftButtonUp += (s, ev) => {
+                    WidthTextBox.Focus();
+                    WidthTextBox.SelectAll();
+                };
+
+                Canvas.SetLeft(widthText, rectX + (rectWidth / 2) - 25);
+                Canvas.SetTop(widthText, rectY + rectHeight + offset + 5);
+                DiagramCanvas.Children.Add(widthText);
+
+                // Линии высоты
+                System.Windows.Shapes.Line heightLine1 = new System.Windows.Shapes.Line
+                {
+                    X1 = rectX - offset,
+                    Y1 = rectY,
+                    X2 = rectX - offset,
+                    Y2 = rectY + rectHeight,
+                    Stroke = Brushes.Blue,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Изменить высоту"
+                };
+                heightLine1.MouseLeftButtonUp += (s, ev) => {
+                    HeightTextBox.Focus();
+                    HeightTextBox.SelectAll();
+                };
+
+                System.Windows.Shapes.Line heightLine2 = new System.Windows.Shapes.Line
+                {
+                    X1 = rectX - offset - 3,
+                    Y1 = rectY,
+                    X2 = rectX - offset + 3,
+                    Y2 = rectY,
+                    Stroke = Brushes.Blue,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Изменить высоту"
+                };
+                heightLine2.MouseLeftButtonUp += (s, ev) => {
+                    HeightTextBox.Focus();
+                    HeightTextBox.SelectAll();
+                };
+
+                System.Windows.Shapes.Line heightLine3 = new System.Windows.Shapes.Line
+                {
+                    X1 = rectX - offset - 3,
+                    Y1 = rectY + rectHeight,
+                    X2 = rectX - offset + 3,
+                    Y2 = rectY + rectHeight,
+                    Stroke = Brushes.Blue,
+                    StrokeThickness = 1.5,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Изменить высоту"
+                };
+                heightLine3.MouseLeftButtonUp += (s, ev) => {
+                    HeightTextBox.Focus();
+                    HeightTextBox.SelectAll();
+                };
+
+                DiagramCanvas.Children.Add(heightLine1);
+                DiagramCanvas.Children.Add(heightLine2);
+                DiagramCanvas.Children.Add(heightLine3);
+
+                // Текст высоты
+                WpfTextBlock heightText = new WpfTextBlock
+                {
+                    Text = $"{heightMm:F0} мм",
+                    Foreground = Brushes.Blue,
+                    FontSize = fontSize,
+                    FontWeight = FontWeights.Bold,
+                    Background = Brushes.White,
+                    Padding = new Thickness(2),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Изменить высоту"
+                };
+                heightText.MouseLeftButtonUp += (s, ev) => {
+                    HeightTextBox.Focus();
+                    HeightTextBox.SelectAll();
+                };
+
+                Canvas.SetLeft(heightText, rectX - offset - 70);
+                Canvas.SetTop(heightText, rectY + (rectHeight / 2) - 10);
+                DiagramCanvas.Children.Add(heightText);
+
+                // Индикатор источника размеров
+                WpfTextBlock sourceIndicator = new WpfTextBlock
+                {
+                    Text = $"{sourceInfo} • {doorType}",
+                    FontSize = 8,
+                    Foreground = Brushes.Gray,
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(200, 255, 255, 255)),
+                    Padding = new Thickness(2)
+                };
+                Canvas.SetLeft(sourceIndicator, rectX + 5);
+                Canvas.SetTop(sourceIndicator, rectY + rectHeight - 15);
+                DiagramCanvas.Children.Add(sourceIndicator);
             }
-
-            double maxWidth = DiagramCanvas.Width * 0.7;
-            double maxHeight = DiagramCanvas.Height * 0.7;
-
-            double scale = Math.Min(maxWidth / widthMm, maxHeight / heightMm) * 0.9;
-
-            double rectWidth = widthMm * scale;
-            double rectHeight = heightMm * scale;
-
-            double rectX = (DiagramCanvas.Width - rectWidth) / 2;
-            double rectY = (DiagramCanvas.Height - rectHeight) / 2;
-
-            WpfRectangle doorRect = new WpfRectangle
+            catch (Exception ex)
             {
-                Width = rectWidth,
-                Height = rectHeight,
-                Stroke = Brushes.Black,
-                StrokeThickness = 2,
-                Fill = Brushes.LightBlue,
-                Opacity = 0.6,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Дверной проем"
-            };
-
-            ToolTipService.SetToolTip(doorRect, $"Ширина: {widthMm:F0} мм\nВысота: {heightMm:F0} мм");
-
-            Canvas.SetLeft(doorRect, rectX);
-            Canvas.SetTop(doorRect, rectY);
-            DiagramCanvas.Children.Add(doorRect);
-
-            double fontSize = 12;
-            double offset = 5;
-
-            System.Windows.Shapes.Line widthLine1 = new System.Windows.Shapes.Line
-            {
-                X1 = rectX,
-                Y1 = rectY + rectHeight + offset,
-                X2 = rectX + rectWidth,
-                Y2 = rectY + rectHeight + offset,
-                Stroke = Brushes.Red,
-                StrokeThickness = 1.5,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Изменить ширину"
-            };
-            widthLine1.MouseLeftButtonUp += (s, ev) => {
-                WidthTextBox.Focus();
-                WidthTextBox.SelectAll();
-                StatusText.Text = "Редактирование ширины двери";
-            };
-
-            System.Windows.Shapes.Line widthLine2 = new System.Windows.Shapes.Line
-            {
-                X1 = rectX,
-                Y1 = rectY + rectHeight + offset - 3,
-                X2 = rectX,
-                Y2 = rectY + rectHeight + offset + 3,
-                Stroke = Brushes.Red,
-                StrokeThickness = 1.5,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Изменить ширину"
-            };
-            widthLine2.MouseLeftButtonUp += (s, ev) => {
-                WidthTextBox.Focus();
-                WidthTextBox.SelectAll();
-                StatusText.Text = "Редактирование ширины двери";
-            };
-
-            System.Windows.Shapes.Line widthLine3 = new System.Windows.Shapes.Line
-            {
-                X1 = rectX + rectWidth,
-                Y1 = rectY + rectHeight + offset - 3,
-                X2 = rectX + rectWidth,
-                Y2 = rectY + rectHeight + offset + 3,
-                Stroke = Brushes.Red,
-                StrokeThickness = 1.5,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Изменить ширину"
-            };
-            widthLine3.MouseLeftButtonUp += (s, ev) => {
-                WidthTextBox.Focus();
-                WidthTextBox.SelectAll();
-                StatusText.Text = "Редактирование ширины двери";
-            };
-
-            DiagramCanvas.Children.Add(widthLine1);
-            DiagramCanvas.Children.Add(widthLine2);
-            DiagramCanvas.Children.Add(widthLine3);
-
-            WpfTextBlock widthText = new WpfTextBlock
-            {
-                Text = $"{widthMm:F0} мм",
-                Foreground = Brushes.Red,
-                FontSize = fontSize,
-                FontWeight = FontWeights.Bold,
-                Background = Brushes.White,
-                Padding = new Thickness(2),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Изменить ширину"
-            };
-            widthText.MouseLeftButtonUp += (s, ev) => {
-                WidthTextBox.Focus();
-                WidthTextBox.SelectAll();
-                StatusText.Text = "Редактирование ширины двери";
-            };
-
-            Canvas.SetLeft(widthText, rectX + (rectWidth / 2) - 25);
-            Canvas.SetTop(widthText, rectY + rectHeight + offset + 5);
-            DiagramCanvas.Children.Add(widthText);
-
-            System.Windows.Shapes.Line heightLine1 = new System.Windows.Shapes.Line
-            {
-                X1 = rectX - offset,
-                Y1 = rectY,
-                X2 = rectX - offset,
-                Y2 = rectY + rectHeight,
-                Stroke = Brushes.Blue,
-                StrokeThickness = 1.5,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Изменить высоту"
-            };
-            heightLine1.MouseLeftButtonUp += (s, ev) => {
-                HeightTextBox.Focus();
-                HeightTextBox.SelectAll();
-                StatusText.Text = "Редактирование высоты двери";
-            };
-
-            System.Windows.Shapes.Line heightLine2 = new System.Windows.Shapes.Line
-            {
-                X1 = rectX - offset - 3,
-                Y1 = rectY,
-                X2 = rectX - offset + 3,
-                Y2 = rectY,
-                Stroke = Brushes.Blue,
-                StrokeThickness = 1.5,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Изменить высоту"
-            };
-            heightLine2.MouseLeftButtonUp += (s, ev) => {
-                HeightTextBox.Focus();
-                HeightTextBox.SelectAll();
-                StatusText.Text = "Редактирование высоты двери";
-            };
-
-            System.Windows.Shapes.Line heightLine3 = new System.Windows.Shapes.Line
-            {
-                X1 = rectX - offset - 3,
-                Y1 = rectY + rectHeight,
-                X2 = rectX - offset + 3,
-                Y2 = rectY + rectHeight,
-                Stroke = Brushes.Blue,
-                StrokeThickness = 1.5,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Изменить высоту"
-            };
-            heightLine3.MouseLeftButtonUp += (s, ev) => {
-                HeightTextBox.Focus();
-                HeightTextBox.SelectAll();
-                StatusText.Text = "Редактирование высоты двери";
-            };
-
-            DiagramCanvas.Children.Add(heightLine1);
-            DiagramCanvas.Children.Add(heightLine2);
-            DiagramCanvas.Children.Add(heightLine3);
-
-            WpfTextBlock heightText = new WpfTextBlock
-            {
-                Text = $"{heightMm:F0} мм",
-                Foreground = Brushes.Blue,
-                FontSize = fontSize,
-                FontWeight = FontWeights.Bold,
-                Background = Brushes.White,
-                Padding = new Thickness(2),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Изменить высоту"
-            };
-            heightText.MouseLeftButtonUp += (s, ev) => {
-                HeightTextBox.Focus();
-                HeightTextBox.SelectAll();
-                StatusText.Text = "Редактирование высоты двери";
-            };
-
-            Canvas.SetLeft(heightText, rectX - offset - 60);
-            Canvas.SetTop(heightText, rectY + (rectHeight / 2) - 10);
-            DiagramCanvas.Children.Add(heightText);
-
-            StatusText.Text = "Кликните на размер на схеме для быстрого редактирования";
-        }
-    }
-
-    public class MaterialItem
-    {
-        public ElementId Id { get; set; }
-        public string Name { get; set; }
-    }
-
-    public class FamilyTypeItem
-    {
-        public ElementId Id { get; set; }
-        public string Name { get; set; }
-        public string FamilyName { get; set; }
-
-        public override string ToString()
-        {
-            if (!string.IsNullOrEmpty(FamilyName))
-                return $"{FamilyName} : {Name}";
-            return Name;
+                System.Diagnostics.Debug.WriteLine($"Ошибка отрисовки схемы: {ex.Message}");
+            }
         }
     }
 }

@@ -9,6 +9,67 @@
         Topmost="True"
         Closed="Window_Closed">
 
+    <Window.Resources>
+        <!-- Стиль для кнопки-заголовка группы -->
+        <Style x:Key="GroupHeaderButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="5"
+                                BorderThickness="0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
+                                                Margin="10,0,0,0"/>
+                                <Path Grid.Column="1"
+                                      x:Name="ArrowPath"
+                                      Data="M0,0 L8,8 L16,0"
+                                      Fill="White"
+                                      Width="16"
+                                      Height="16"
+                                      Stretch="Fill"
+                                      Margin="0,0,10,0"
+                                      RenderTransformOrigin="0.5,0.5">
+                                    <Path.RenderTransform>
+                                        <RotateTransform x:Name="ArrowRotation" Angle="0"/>
+                                    </Path.RenderTransform>
+                                </Path>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2980B9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Стиль для контейнера группы -->
+        <Style x:Key="GroupContentStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#BDC3C7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="0,0,5,5"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="10">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="400"/>
@@ -16,7 +77,10 @@
         </Grid.ColumnDefinitions>
 
         <!-- Левая панель с параметрами -->
-        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer Grid.Column="0" 
+                      VerticalScrollBarVisibility="Auto" 
+                      HorizontalScrollBarVisibility="Disabled"
+                      Background="Transparent">
             <StackPanel Margin="10">
 
                 <!-- Заголовок -->
@@ -82,28 +146,104 @@
                     </StackPanel>
                 </GroupBox>
 
-                <!-- Размеры (грубые параметры) -->
-                <GroupBox Header="Примерные размеры (мм)" Margin="0,0,0,10" Padding="5">
+                <!-- Размеры (грубые параметры + системные размеры) -->
+                <GroupBox Header="Размеры двери" Margin="0,0,0,10" Padding="5">
                     <StackPanel>
-                        <Label Content="Ширина:" Margin="0,0,0,2" FontWeight="SemiBold"/>
-                        <TextBox x:Name="WidthTextBox" 
-                                 Margin="0,0,0,10" 
-                                 Height="30"
-                                 Padding="5"
-                                 TextChanged="Parameter_TextChanged"/>
+                        <!-- Ширина -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <Label Content="Высота:" Margin="0,0,0,2" FontWeight="SemiBold"/>
-                        <TextBox x:Name="HeightTextBox" 
-                                 Margin="0,0,0,5" 
-                                 Height="30"
-                                 Padding="5"
-                                 TextChanged="Parameter_TextChanged"/>
+                            <!-- Примерная ширина -->
+                            <StackPanel Grid.Column="0">
+                                <Label Content="Ширина примерная:" FontWeight="SemiBold" 
+                                       ToolTip="Параметр FAMILY_ROUGH_WIDTH_PARAM"/>
+                                <TextBox x:Name="WidthTextBox" 
+                                         Height="30" 
+                                         Padding="5"
+                                         TextChanged="Parameter_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Разделитель -->
+                            <Border Grid.Column="1" 
+                                    Width="1" 
+                                    Background="#BDC3C7" 
+                                    Margin="5,25,5,0"
+                                    HorizontalAlignment="Center"/>
+
+                            <!-- Системная ширина -->
+                            <StackPanel Grid.Column="2">
+                                <Label Content="Ширина (системная):" FontWeight="SemiBold"
+                                       ToolTip="BuiltInParameter.DOOR_WIDTH"/>
+                                <TextBox x:Name="DoorWidthTextBox" 
+                                         Height="30" 
+                                         Padding="5"
+                                         IsReadOnly="True"
+                                         Background="#F0F0F0"
+                                         Foreground="#2C3E50"
+                                         FontWeight="SemiBold"
+                                         BorderBrush="#BDC3C7"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Высота -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Примерная высота -->
+                            <StackPanel Grid.Column="0">
+                                <Label Content="Высота примерная:" FontWeight="SemiBold"
+                                       ToolTip="Параметр FAMILY_ROUGH_HEIGHT_PARAM"/>
+                                <TextBox x:Name="HeightTextBox" 
+                                         Height="30" 
+                                         Padding="5"
+                                         TextChanged="Parameter_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Разделитель -->
+                            <Border Grid.Column="1" 
+                                    Width="1" 
+                                    Background="#BDC3C7" 
+                                    Margin="5,25,5,0"
+                                    HorizontalAlignment="Center"/>
+
+                            <!-- Системная высота -->
+                            <StackPanel Grid.Column="2">
+                                <Label Content="Высота (системная):" FontWeight="SemiBold"
+                                       ToolTip="BuiltInParameter.DOOR_HEIGHT"/>
+                                <TextBox x:Name="DoorHeightTextBox" 
+                                         Height="30" 
+                                         Padding="5"
+                                         IsReadOnly="True"
+                                         Background="#F0F0F0"
+                                         Foreground="#2C3E50"
+                                         FontWeight="SemiBold"
+                                         BorderBrush="#BDC3C7"/>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </GroupBox>
 
-                <!-- Секция: Материалы и отделка -->
-                <GroupBox Header="Материалы и отделка" Margin="0,0,0,10" Padding="5" BorderBrush="#27AE60" BorderThickness="1">
-                    <StackPanel x:Name="MaterialsStackPanel" Margin="0,5,0,5">
+                <!-- Секция: Материалы и отделка (аккордеон) -->
+                <Button x:Name="MaterialsHeaderButton"
+                        Style="{StaticResource GroupHeaderButtonStyle}"
+                        Background="#27AE60"
+                        Click="ToggleGroup_Click"
+                        Tag="Materials">
+                    <TextBlock Text="Материалы и отделка"/>
+                </Button>
+
+                <Border x:Name="MaterialsContent"
+                        Style="{StaticResource GroupContentStyle}"
+                        Visibility="Collapsed">
+                    <StackPanel x:Name="MaterialsStackPanel" Margin="0">
                         <!-- Сюда будут динамически добавляться параметры -->
                         <TextBlock Text="Загрузка параметров..." 
                                    Foreground="Gray" 
@@ -111,11 +251,21 @@
                                    HorizontalAlignment="Center"
                                    Margin="10"/>
                     </StackPanel>
-                </GroupBox>
+                </Border>
 
-                <!-- Секция: Construction (НОВАЯ) -->
-                <GroupBox Header="Construction" Margin="0,0,0,10" Padding="5" BorderBrush="#E67E22" BorderThickness="1">
-                    <StackPanel x:Name="ConstructionStackPanel" Margin="0,5,0,5">
+                <!-- Секция: Construction (аккордеон) -->
+                <Button x:Name="ConstructionHeaderButton"
+                        Style="{StaticResource GroupHeaderButtonStyle}"
+                        Background="#E67E22"
+                        Click="ToggleGroup_Click"
+                        Tag="Construction">
+                    <TextBlock Text="Construction"/>
+                </Button>
+
+                <Border x:Name="ConstructionContent"
+                        Style="{StaticResource GroupContentStyle}"
+                        Visibility="Collapsed">
+                    <StackPanel x:Name="ConstructionStackPanel" Margin="0">
                         <!-- Сюда будут динамически добавляться параметры -->
                         <TextBlock Text="Загрузка параметров Construction..." 
                                    Foreground="Gray" 
@@ -123,11 +273,43 @@
                                    HorizontalAlignment="Center"
                                    Margin="10"/>
                     </StackPanel>
-                </GroupBox>
+                </Border>
 
-                <!-- Секция: Other (НОВАЯ) -->
-                <GroupBox Header="Other" Margin="0,0,0,10" Padding="5" BorderBrush="#9B59B6" BorderThickness="1">
-                    <StackPanel x:Name="OtherStackPanel" Margin="0,5,0,5">
+                <!-- Секция: Visibility (аккордеон) -->
+                <Button x:Name="VisibilityHeaderButton"
+                        Style="{StaticResource GroupHeaderButtonStyle}"
+                        Background="#3498DB"
+                        Click="ToggleGroup_Click"
+                        Tag="Visibility">
+                    <TextBlock Text="Visibility"/>
+                </Button>
+
+                <Border x:Name="VisibilityContent"
+                        Style="{StaticResource GroupContentStyle}"
+                        Visibility="Collapsed">
+                    <StackPanel x:Name="VisibilityStackPanel" Margin="0">
+                        <!-- Сюда будут динамически добавляться параметры -->
+                        <TextBlock Text="Загрузка параметров Visibility..." 
+                                   Foreground="Gray" 
+                                   FontStyle="Italic"
+                                   HorizontalAlignment="Center"
+                                   Margin="10"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Секция: Other (аккордеон) -->
+                <Button x:Name="OtherHeaderButton"
+                        Style="{StaticResource GroupHeaderButtonStyle}"
+                        Background="#9B59B6"
+                        Click="ToggleGroup_Click"
+                        Tag="Other">
+                    <TextBlock Text="Other"/>
+                </Button>
+
+                <Border x:Name="OtherContent"
+                        Style="{StaticResource GroupContentStyle}"
+                        Visibility="Collapsed">
+                    <StackPanel x:Name="OtherStackPanel" Margin="0">
                         <!-- Сюда будут динамически добавляться параметры -->
                         <TextBlock Text="Загрузка параметров Other..." 
                                    Foreground="Gray" 
@@ -135,39 +317,7 @@
                                    HorizontalAlignment="Center"
                                    Margin="10"/>
                     </StackPanel>
-                </GroupBox>
-
-                <!-- Кнопки управления -->
-                <Button x:Name="UpdateAndRefreshButton" 
-                        Content="Обновить изображение" 
-                        Margin="0,5" 
-                        Height="40"
-                        IsEnabled="False"
-                        Click="UpdateAndRefreshButton_Click"
-                        FontWeight="Bold"
-                        Background="#3498DB"
-                        Foreground="White"
-                        BorderThickness="0"/>
-
-                <Button x:Name="ApplyButton" 
-                        Content="Применить изменения" 
-                        Margin="0,5" 
-                        Height="40"
-                        IsEnabled="False"
-                        Click="ApplyButton_Click"
-                        FontWeight="Bold"
-                        Background="#E67E22"
-                        Foreground="White"
-                        BorderThickness="0"/>
-
-                <Button x:Name="CloseButton" 
-                        Content="Закрыть" 
-                        Margin="0,5,0,0" 
-                        Height="35"
-                        Click="CloseButton_Click"
-                        Background="#95A5A6"
-                        Foreground="White"
-                        BorderThickness="0"/>
+                </Border>
 
                 <!-- Статус -->
                 <Border Background="#ECF0F1" 
@@ -188,6 +338,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -225,9 +376,9 @@
             <Border Grid.Row="1" Grid.Column="0"
                     BorderBrush="Gray" 
                     BorderThickness="1" 
-                    CornerRadius="0,0,5,5"
+                    CornerRadius="0,0,0,5"
                     Background="White"
-                    Margin="0,0,5,0">
+                    Margin="0,0,5,5">
                 <Image x:Name="DoorImage" 
                        Stretch="Uniform"
                        HorizontalAlignment="Center"
@@ -241,15 +392,16 @@
                           VerticalAlignment="Stretch"
                           ShowsPreview="True"
                           Width="5"
-                          Background="LightGray"/>
+                          Background="LightGray"
+                          Margin="0,0,0,5"/>
 
             <!-- Border для схемы (справа) -->
             <Border Grid.Row="1" Grid.Column="2"
                     BorderBrush="Gray" 
                     BorderThickness="1" 
-                    CornerRadius="0,0,5,5"
+                    CornerRadius="0,0,5,0"
                     Background="White"
-                    Margin="5,0,0,0">
+                    Margin="5,0,0,5">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <Canvas x:Name="DiagramCanvas" 
                             Width="300" 
@@ -261,6 +413,23 @@
                     </Canvas>
                 </ScrollViewer>
             </Border>
+
+            <!-- Кнопка "Обновить изображение" в правом нижнем углу -->
+            <Button Grid.Row="2" Grid.Column="2"
+                    x:Name="UpdateAndRefreshButton" 
+                    Content="Обновить изображение" 
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Width="200"
+                    Height="40"
+                    Margin="5,10,0,5"
+                    IsEnabled="False"
+                    Click="UpdateAndRefreshButton_Click"
+                    FontWeight="Bold"
+                    Background="#3498DB"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand"/>
         </Grid>
     </Grid>
 </Window>
