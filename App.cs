@@ -112,6 +112,21 @@ namespace RevitHelloWorld
             };
             commonPanel.AddItem(worksetsButtonData);
 
+            // Кнопка "3D по рабочим наборам"
+            PushButtonData ThreeDByWorksetsButtonData = new PushButtonData(
+                "ThreeDByWorksetsButton",
+                "3D по\nраб.наборам",
+                assemblyPath,
+                "PlugINPRO.ThreeDByWorksetsCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.Worksets32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Worksets16.png"),
+                ToolTip = "Создание 3D видов по рабочим наборам",
+                LongDescription = "Создает отдельные 3D виды, содержащие элементы только одного конкретного рабочего набора"
+            };
+            commonPanel.AddItem(ThreeDByWorksetsButtonData);
+
             // Кнопка "Экспорт PDF и DWG"
             PushButtonData exportButtonData = new PushButtonData(
                 "PdfDwgExportButton",

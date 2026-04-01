@@ -97,6 +97,7 @@
     <Compile Include="IFCWindow.xaml.cs">
       <DependentUpon>IFCWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ThreeDByWorksetsCommand.cs" />
     <Compile Include="WorksetsCheckCommand.cs" />
     <Compile Include="WorksetsCheckWindow.xaml.cs">
       <DependentUpon>WorksetsCheckWindow.xaml</DependentUpon>

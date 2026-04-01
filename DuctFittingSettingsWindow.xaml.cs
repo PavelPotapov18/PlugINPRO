@@ -58,7 +58,7 @@ namespace PlugINPRO
 
                 _availableFamilies = collector.Cast<FamilySymbol>().ToList();
 
-                // ФИЛЬТР: оставляем только те, в названии которых есть "Крепление"
+                // ФИЛЬТР: оставляем только те, в названии которых есть "Крепление" или "Опора", а также "воздуховодов"
                 _availableFamilies = _availableFamilies
                     .Where(fs =>
                         fs.Family.Name.IndexOf("крепление", StringComparison.OrdinalIgnoreCase) >= 0 ||
