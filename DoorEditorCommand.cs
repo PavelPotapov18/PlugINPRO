@@ -85,15 +85,19 @@ namespace PlugINPRO
                     // Сохраняем ID вида
                     tempViewId = sectionView.Id;
 
-                    // Скрываем все, кроме двери и её зависимых элементов
+                    // ===== ПРАВИЛЬНЫЙ ПОРЯДОК =====
+                    // 1. Сначала настраиваем свойства вида (скрытие категорий, детализация, реализм)
+                    SetupViewVisibility(sectionView, doc);
+
+                    // 2. Потом скрываем связи
+                    HideRevitLinks(sectionView, doc);
+
+                    // 3. И ТОЛЬКО ПОТОМ скрываем все элементы, кроме двери и её зависимых элементов
                     HideAllExceptDoor(sectionView, doc, door);
 
                     // ОТКЛЮЧАЕМ CROP VIEW
                     sectionView.CropBoxActive = false;
                     sectionView.CropBoxVisible = false;
-
-                    // Применяем шаблон вида
-                    ApplyViewTemplate(sectionView, doc);
 
                     tx.Commit();
                 }
@@ -193,7 +197,6 @@ namespace PlugINPRO
             }
             catch (Exception ex)
             {
-                // Игнорируем ошибки удаления
                 System.Diagnostics.Debug.WriteLine($"Ошибка удаления вида: {ex.Message}");
             }
         }
@@ -277,24 +280,122 @@ namespace PlugINPRO
             }
         }
 
-        private void ApplyViewTemplate(ViewSection view, Document doc)
+        private void HideRevitLinks(View view, Document doc)
         {
             try
             {
-                FilteredElementCollector collector = new FilteredElementCollector(doc);
-                View viewTemplate = collector
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .FirstOrDefault(v => v.IsTemplate && v.Name == "ADSK_АР_О_Ф_Цветной");
+                Category linkCategory = doc.Settings.Categories.get_Item(BuiltInCategory.OST_RvtLinks);
 
-                if (viewTemplate != null)
+                if (linkCategory != null)
                 {
-                    view.ViewTemplateId = viewTemplate.Id;
+                    try
+                    {
+                        view.SetCategoryHidden(linkCategory.Id, true);
+                        System.Diagnostics.Debug.WriteLine("Связи скрыты через категорию");
+                    }
+                    catch
+                    {
+                        FilteredElementCollector linkCollector = new FilteredElementCollector(doc, view.Id)
+                            .OfClass(typeof(RevitLinkInstance));
+
+                        List<ElementId> linkIds = linkCollector.Select(link => link.Id).ToList();
+
+                        if (linkIds.Count > 0)
+                        {
+                            view.HideElements(linkIds);
+                            System.Diagnostics.Debug.WriteLine($"Скрыто {linkIds.Count} экземпляров связей");
+                        }
+                    }
                 }
+
+                doc.Regenerate();
             }
             catch (Exception ex)
             {
-                // Продолжаем без шаблона
+                System.Diagnostics.Debug.WriteLine($"Ошибка при скрытии связей: {ex.Message}");
+            }
+        }
+
+        private void SetupViewVisibility(ViewSection view, Document doc)
+        {
+            try
+            {
+                // НИКАКИХ ШАБЛОНОВ - просто настраиваем вид вручную
+                System.Diagnostics.Debug.WriteLine("Настраиваем вид напрямую");
+
+                // 1. Скрываем все категории модели кроме DOORS
+                Categories categories = doc.Settings.Categories;
+                int hiddenCount = 0;
+
+                foreach (Category cat in categories)
+                {
+                    // Пропускаем категорию дверей
+                    if (cat.Id.IntegerValue == (int)BuiltInCategory.OST_Doors)
+                        continue;
+
+                    // Скрываем категории модели
+                    if (cat.CategoryType == CategoryType.Model)
+                    {
+                        try
+                        {
+                            if (view.CanCategoryBeHidden(cat.Id))
+                            {
+                                view.SetCategoryHidden(cat.Id, true);
+                                hiddenCount++;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Не удалось скрыть {cat.Name}: {ex.Message}");
+                        }
+                    }
+
+                    // Скрываем аннотации
+                    if (cat.CategoryType == CategoryType.Annotation)
+                    {
+                        try
+                        {
+                            if (view.CanCategoryBeHidden(cat.Id))
+                            {
+                                view.SetCategoryHidden(cat.Id, true);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                // 2. Убираем применение любого шаблона (если вдруг был)
+                if (view.ViewTemplateId != ElementId.InvalidElementId)
+                {
+                    view.ViewTemplateId = ElementId.InvalidElementId;
+                }
+
+                // 3. Высокая детализация
+                view.DetailLevel = ViewDetailLevel.Fine;
+
+                // 4. Flat Colors (единообразный цвет)
+                try
+                {
+                    view.DisplayStyle = DisplayStyle.FlatColors;
+                    System.Diagnostics.Debug.WriteLine("Установлен режим Flat Colors");
+                }
+                catch
+                {
+                    // Если Flat Colors не поддерживается, пробуем Shading
+                    try
+                    {
+                        view.DisplayStyle = DisplayStyle.Shading;
+                        System.Diagnostics.Debug.WriteLine("Flat Colors не поддерживается, установлен Shading");
+                    }
+                    catch { }
+                }
+
+                doc.Regenerate();
+                System.Diagnostics.Debug.WriteLine($"Вид настроен. Скрыто категорий модели: {hiddenCount}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка настройки вида: {ex.Message}");
             }
         }
 
@@ -305,64 +406,67 @@ namespace PlugINPRO
                 ViewFamilyType sectionFamilyType = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewFamilyType))
                     .Cast<ViewFamilyType>()
-                    .First(vft => vft.ViewFamily == ViewFamily.Section);
+                    .FirstOrDefault(vft => vft.ViewFamily == ViewFamily.Section);
 
-                XYZ viewDirection;
-                XYZ rightDirection;
-                XYZ center = (bb.Min + bb.Max) / 2;
-
-                if (hostWall != null)
+                if (sectionFamilyType == null)
                 {
-                    LocationCurve wallCurve = hostWall.Location as LocationCurve;
-                    if (wallCurve != null)
-                    {
-                        XYZ wallDirection = (wallCurve.Curve.GetEndPoint(1) - wallCurve.Curve.GetEndPoint(0)).Normalize();
-                        XYZ wallNormal = new XYZ(wallDirection.Y, -wallDirection.X, 0).Normalize();
-                        viewDirection = wallNormal;
-                        rightDirection = wallDirection;
-                    }
-                    else
-                    {
-                        viewDirection = new XYZ(0, -1, 0);
-                        rightDirection = new XYZ(1, 0, 0);
-                    }
+                    System.Diagnostics.Debug.WriteLine("Ошибка: Не найден ViewFamilyType для разреза");
+                    return null;
+                }
+
+                XYZ center = (bb.Min + bb.Max) / 2;
+                XYZ viewDirection;
+
+                // ===== ОПРЕДЕЛЯЕМ НАПРАВЛЕНИЕ ВЗГЛЯДА ПО ДВЕРИ =====
+                if (door is FamilyInstance doorInstance)
+                {
+                    // Смотрим на лицевую сторону двери
+                    viewDirection = -doorInstance.FacingOrientation.Normalize();
+                    System.Diagnostics.Debug.WriteLine($"FacingOrientation: {doorInstance.FacingOrientation}");
+                    System.Diagnostics.Debug.WriteLine($"viewDirection: {viewDirection}");
                 }
                 else
                 {
                     viewDirection = new XYZ(0, -1, 0);
-                    rightDirection = new XYZ(1, 0, 0);
                 }
 
-                // Создаем transform, но не применяем его сразу
+                // ===== СТРОИМ ОРТОНОРМИРОВАННЫЙ БАЗИС =====
+                XYZ up = XYZ.BasisZ;
+
+                if (Math.Abs(viewDirection.DotProduct(up)) > 0.99)
+                {
+                    up = XYZ.BasisX;
+                    System.Diagnostics.Debug.WriteLine("viewDirection почти вертикальный, используем BasisX как up");
+                }
+
+                XYZ right = up.CrossProduct(viewDirection).Normalize();
+                up = viewDirection.CrossProduct(right).Normalize();
+
                 Transform transform = Transform.Identity;
-                transform.BasisX = rightDirection;
-                transform.BasisY = new XYZ(0, 0, 1);
+                transform.BasisX = right;
+                transform.BasisY = up;
                 transform.BasisZ = viewDirection;
                 transform.Origin = center;
 
-                // Создаем bounding box в локальных координатах
                 BoundingBoxXYZ sectionBox = new BoundingBoxXYZ();
-
-                // Устанавливаем transform
                 sectionBox.Transform = transform;
 
-                // Размеры в локальных координатах (намного меньше!)
-                double width = (bb.Max.X - bb.Min.X) + 0.5; // +0.5 фута запаса
-                double height = (bb.Max.Z - bb.Min.Z) + 0.5; // +0.5 фута запаса
-                double depth = 0.1; // Очень маленькая глубина (около 3 см)
+                double width = (bb.Max.X - bb.Min.X) + 2.0;
+                double height = (bb.Max.Z - bb.Min.Z) + 2.0;
+                double depth = 2.0;
 
-                // Устанавливаем min и max в локальных координатах
                 sectionBox.Min = new XYZ(-width / 2, -depth / 2, -height / 2);
                 sectionBox.Max = new XYZ(width / 2, depth / 2, height / 2);
 
                 ViewSection sectionView = ViewSection.CreateSection(doc, sectionFamilyType.Id, sectionBox);
                 sectionView.Name = "Временный разрез двери";
 
+                System.Diagnostics.Debug.WriteLine($"Разрез успешно создан, Id: {sectionView.Id}");
                 return sectionView;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка создания разреза: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Ошибка создания разреза: {ex.Message}");
                 return null;
             }
         }

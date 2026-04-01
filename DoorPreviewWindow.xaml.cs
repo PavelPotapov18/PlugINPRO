@@ -927,11 +927,11 @@ namespace PlugINPRO
         {
             try
             {
+                // Возвращаем предыдущий активный вид
                 if (_previousView != null && _uidoc.ActiveView.Id != _previousView.Id)
                 {
                     _uidoc.ActiveView = _previousView;
                 }
-
                 if (_tempViewId != null && _tempViewId != ElementId.InvalidElementId)
                 {
                     using (Transaction tx = new Transaction(_doc, "Удаление временного вида"))
@@ -947,7 +947,9 @@ namespace PlugINPRO
                         tx.Commit();
                     }
                 }
+                
 
+                // Удаляем временный файл изображения
                 DoorImage.Source = null;
                 if (File.Exists(_currentImagePath))
                 {
@@ -2499,6 +2501,35 @@ namespace PlugINPRO
                 bool isDoubleDoor = familyName.Contains("Двупольная") || familyName.Contains("Double") || familyName.Contains("Двухстворчатая");
                 bool isSingleDoor = familyName.Contains("Однопольная") || familyName.Contains("Single") || familyName.Contains("Одностворчатая");
 
+                // ===== НОВАЯ ЛОГИКА: Получаем значение параметра "Равные полотна" =====
+                bool isEqualLeaves = GetEqualLeavesParameterValue();
+
+                // Получаем значения ширины полотен
+                double leaf1WidthMm;
+                double leaf2WidthMm;
+
+                if (isEqualLeaves)
+                {
+                    // Если галка нажата - полотна равны (симметричная дверь)
+                    leaf1WidthMm = widthMm / 2;
+                    leaf2WidthMm = widthMm / 2;
+                    System.Diagnostics.Debug.WriteLine("Равные полотна ВКЛ: симметричная дверь");
+                }
+                else
+                {
+                    // Если галка отжата - берем реальные размеры из параметров
+                    leaf1WidthMm = GetParameterValue("Полотно1_Ширина", widthMm / 2);
+                    leaf2WidthMm = GetParameterValue("Полотно2_Ширина", widthMm / 2);
+                    System.Diagnostics.Debug.WriteLine($"Равные полотна ВЫКЛ: реальные размеры {leaf1WidthMm:F0} / {leaf2WidthMm:F0}");
+                }
+
+                // Для однопольной двери используем только одно полотно
+                if (!isDoubleDoor)
+                {
+                    leaf1WidthMm = widthMm;
+                    leaf2WidthMm = 0;
+                }
+
                 string doorType = isDoubleDoor ? "Двупольная" : (isSingleDoor ? "Однопольная" : "Стандартная");
 
                 // Получаем значения параметров остекления для левой створки (в мм)
@@ -2529,6 +2560,9 @@ namespace PlugINPRO
                 SolidColorBrush leftGlassDimColor = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 150, 0)); // Зеленый
                 SolidColorBrush rightGlassDimColor = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 100, 150)); // Сине-зеленый
 
+                // Цвет для размеров полотен
+                SolidColorBrush leafDimColor = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 100, 0)); // Оранжево-коричневый
+
                 // Рисуем основу двери (дерево)
                 WpfRectangle doorRect = new WpfRectangle
                 {
@@ -2538,11 +2572,32 @@ namespace PlugINPRO
                     StrokeThickness = 2,
                     Fill = woodColor,
                     Opacity = 0.8,
-                    Cursor = System.Windows.Input.Cursors.Hand
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Tag = "DoorRect"
                 };
 
                 string sourceInfo = (doorWidthParam != null && doorWidthParam.HasValue) ? "системные" : "из типа";
                 ToolTipService.SetToolTip(doorRect, $"Ширина: {widthMm:F0} мм\nВысота: {heightMm:F0} мм\nТип: {doorType}\n(размеры: {sourceInfo})");
+
+                // Добавляем обработчики для параметра "Равные полотна"
+                doorRect.MouseEnter += (s, e) =>
+                {
+                    doorRect.Stroke = Brushes.Blue;
+                    doorRect.StrokeThickness = 3;
+                    StatusText.Text = "Нажмите чтобы изменить параметр 'Равные полотна'";
+                };
+
+                doorRect.MouseLeave += (s, e) =>
+                {
+                    doorRect.Stroke = Brushes.Black;
+                    doorRect.StrokeThickness = 2;
+                    StatusText.Text = "Готово";
+                };
+
+                doorRect.MouseLeftButtonUp += (s, e) =>
+                {
+                    ToggleEqualLeavesParameter();
+                };
 
                 Canvas.SetLeft(doorRect, rectX);
                 Canvas.SetTop(doorRect, rectY);
@@ -2610,42 +2665,54 @@ namespace PlugINPRO
                 // Рисуем дверь в зависимости от типа
                 if (isDoubleDoor)
                 {
-                    // Двупольная дверь - делим пополам
-                    double halfWidth = rectWidth / 2;
-                    double midX = rectX + halfWidth;
+                    // Для двупольной двери используем размеры полотен (симметричные или реальные)
+                    double leaf1WidthPx = leaf1WidthMm * scale;
+                    double leaf2WidthPx = leaf2WidthMm * scale;
 
-                    // Обводка левой створки (поверх дерева)
+                    // Корректируем, если сумма не совпадает с общей шириной
+                    double totalLeafWidth = leaf1WidthPx + leaf2WidthPx;
+                    if (Math.Abs(totalLeafWidth - rectWidth) > 1)
+                    {
+                        // Пропорционально корректируем
+                        leaf1WidthPx = rectWidth * (leaf1WidthMm / (leaf1WidthMm + leaf2WidthMm));
+                        leaf2WidthPx = rectWidth - leaf1WidthPx;
+                    }
+
+                    double leftLeafX = rectX;
+                    double rightLeafX = rectX + leaf1WidthPx;
+
+                    // Обводка левой створки
                     WpfRectangle leftLeaf = new WpfRectangle
                     {
-                        Width = halfWidth - 1,
+                        Width = leaf1WidthPx - 1,
                         Height = rectHeight,
                         Stroke = darkBrownBrush,
                         StrokeThickness = 1.5,
                         Fill = Brushes.Transparent
                     };
-                    Canvas.SetLeft(leftLeaf, rectX);
+                    Canvas.SetLeft(leftLeaf, leftLeafX);
                     Canvas.SetTop(leftLeaf, rectY);
                     DiagramCanvas.Children.Add(leftLeaf);
 
                     // Обводка правой створки
                     WpfRectangle rightLeaf = new WpfRectangle
                     {
-                        Width = halfWidth - 1,
+                        Width = leaf2WidthPx - 1,
                         Height = rectHeight,
                         Stroke = darkBrownBrush,
                         StrokeThickness = 1.5,
                         Fill = Brushes.Transparent
                     };
-                    Canvas.SetLeft(rightLeaf, rectX + halfWidth + 1);
+                    Canvas.SetLeft(rightLeaf, rightLeafX + 1);
                     Canvas.SetTop(rightLeaf, rectY);
                     DiagramCanvas.Children.Add(rightLeaf);
 
                     // Вертикальная линия между створками
                     System.Windows.Shapes.Line dividerLine = new System.Windows.Shapes.Line
                     {
-                        X1 = midX,
+                        X1 = rightLeafX,
                         Y1 = rectY,
-                        X2 = midX,
+                        X2 = rightLeafX,
                         Y2 = rectY + rectHeight,
                         Stroke = darkBrownBrush,
                         StrokeThickness = 2,
@@ -2653,13 +2720,38 @@ namespace PlugINPRO
                     };
                     DiagramCanvas.Children.Add(dividerLine);
 
+                    // ========== РАЗМЕРЫ ПОЛОТЕН ==========
+                    // Показываем размеры ТОЛЬКО когда галка НЕ нажата (isEqualLeaves = false)
+                    if (!isEqualLeaves)
+                    {
+                        // Размер левого полотна - кликабельный
+                        DrawLeafDimension(
+                            leftLeafX, rectY + rectHeight + 25, rightLeafX, rectY + rectHeight + 25,
+                            leafDimColor, leaf1WidthMm, "Полотно1_Ширина",
+                            () => SelectOtherParameter("Полотно1_Ширина"),
+                            leftLeafX + (leaf1WidthPx / 2) - 25, rectY + rectHeight + 30,
+                            true,
+                            true // кликабельный
+                        );
+
+                        // Размер правого полотна - НЕ кликабельный
+                        DrawLeafDimension(
+                            rightLeafX, rectY + rectHeight + 25, rectX + rectWidth, rectY + rectHeight + 25,
+                            leafDimColor, leaf2WidthMm, "Полотно2_Ширина",
+                            null, // нет действия при клике
+                            rightLeafX + (leaf2WidthPx / 2) - 25, rectY + rectHeight + 30,
+                            true,
+                            false // не кликабельный
+                        );
+                    }
+
                     // ========== ОСТЕКЛЕНИЕ ЛЕВОЙ СТВОРКИ ==========
 
                     // Вычисляем позицию остекления левой створки на основе параметров (в пикселях)
                     double leftGlassTopY = rectY + (leftTopOffsetMm * scale);
                     double leftGlassBottomY = rectY + rectHeight - (leftBottomOffsetMm * scale);
-                    double leftGlassLeftX = rectX + (leftLeftOffsetMm * scale);
-                    double leftGlassRightX = rectX + halfWidth - (leftRightOffsetMm * scale);
+                    double leftGlassLeftX = leftLeafX + (leftLeftOffsetMm * scale);
+                    double leftGlassRightX = rightLeafX - (leftRightOffsetMm * scale);
 
                     // Размеры остекления левой створки
                     double leftGlassHeight = leftGlassBottomY - leftGlassTopY;
@@ -2670,9 +2762,9 @@ namespace PlugINPRO
                     {
                         // Используем значения по умолчанию
                         leftGlassHeight = rectHeight - 40;
-                        leftGlassWidth = halfWidth * 0.6;
+                        leftGlassWidth = leaf1WidthPx * 0.6;
                         leftGlassTopY = rectY + 20;
-                        leftGlassLeftX = rectX + (halfWidth - leftGlassWidth) / 2;
+                        leftGlassLeftX = leftLeafX + (leaf1WidthPx - leftGlassWidth) / 2;
                         leftGlassRightX = leftGlassLeftX + leftGlassWidth;
                         leftGlassBottomY = leftGlassTopY + leftGlassHeight;
                     }
@@ -2691,21 +2783,24 @@ namespace PlugINPRO
                     };
 
                     // Добавляем обработчики событий для левого остекления
-                    leftGlassRect.MouseEnter += (s, e) => {
+                    leftGlassRect.MouseEnter += (s, e) =>
+                    {
                         leftGlassRect.Fill = glassHoverColor;
                         leftGlassRect.Stroke = Brushes.Blue;
                         leftGlassRect.StrokeThickness = 2;
                         StatusText.Text = "Нажмите чтобы выбрать тип левой створки";
                     };
 
-                    leftGlassRect.MouseLeave += (s, e) => {
+                    leftGlassRect.MouseLeave += (s, e) =>
+                    {
                         leftGlassRect.Fill = glassColor;
                         leftGlassRect.Stroke = Brushes.DarkBlue;
                         leftGlassRect.StrokeThickness = 1.5;
                         StatusText.Text = "Готово";
                     };
 
-                    leftGlassRect.MouseLeftButtonUp += (s, e) => {
+                    leftGlassRect.MouseLeftButtonUp += (s, e) =>
+                    {
                         SelectPanelTypeParameter("Тип полотна двери 1");
                     };
 
@@ -2758,19 +2853,19 @@ namespace PlugINPRO
 
                     // Левый отступ левой створки - Рама двери1_Ширина слева
                     DrawGlassDimension(
-                        rectX, rectY - 25, leftGlassLeftX, rectY - 25,
+                        leftLeafX, rectY - 25, leftGlassLeftX, rectY - 25,
                         leftGlassDimColor, leftLeftOffsetMm, "Левая створка - левый отступ",
                         () => SelectOtherParameter("Рама двери1_Ширина слева"),
-                        rectX + (leftGlassLeftX - rectX) / 2 - 20, rectY - 45,
+                        leftLeafX + (leftGlassLeftX - leftLeafX) / 2 - 20, rectY - 45,
                         true
                     );
 
                     // Правый отступ левой створки - Рама двери1_Ширина справа
                     DrawGlassDimension(
-                        leftGlassRightX, rectY - 25, midX, rectY - 25,
+                        leftGlassRightX, rectY - 25, rightLeafX, rectY - 25,
                         leftGlassDimColor, leftRightOffsetMm, "Левая створка - правый отступ",
                         () => SelectOtherParameter("Рама двери1_Ширина справа"),
-                        leftGlassRightX + (midX - leftGlassRightX) / 2 - 20, rectY - 45,
+                        leftGlassRightX + (rightLeafX - leftGlassRightX) / 2 - 20, rectY - 45,
                         true
                     );
 
@@ -2779,7 +2874,7 @@ namespace PlugINPRO
                     // Вычисляем позицию остекления правой створки на основе параметров (в пикселях)
                     double rightGlassTopY = rectY + (rightTopOffsetMm * scale);
                     double rightGlassBottomY = rectY + rectHeight - (rightBottomOffsetMm * scale);
-                    double rightGlassLeftX = midX + 1 + (rightLeftOffsetMm * scale);
+                    double rightGlassLeftX = rightLeafX + 1 + (rightLeftOffsetMm * scale);
                     double rightGlassRightX = rectX + rectWidth - (rightRightOffsetMm * scale);
 
                     // Размеры остекления правой створки
@@ -2791,9 +2886,9 @@ namespace PlugINPRO
                     {
                         // Используем значения по умолчанию
                         rightGlassHeight = rectHeight - 40;
-                        rightGlassWidth = halfWidth * 0.6;
+                        rightGlassWidth = leaf2WidthPx * 0.6;
                         rightGlassTopY = rectY + 20;
-                        rightGlassLeftX = midX + 1 + (halfWidth - rightGlassWidth) / 2;
+                        rightGlassLeftX = rightLeafX + 1 + (leaf2WidthPx - (leaf2WidthPx * 0.6)) / 2;
                         rightGlassRightX = rightGlassLeftX + rightGlassWidth;
                         rightGlassBottomY = rightGlassTopY + rightGlassHeight;
                     }
@@ -2812,21 +2907,24 @@ namespace PlugINPRO
                     };
 
                     // Добавляем обработчики событий для правого остекления
-                    rightGlassRect.MouseEnter += (s, e) => {
+                    rightGlassRect.MouseEnter += (s, e) =>
+                    {
                         rightGlassRect.Fill = glassHoverColor;
                         rightGlassRect.Stroke = Brushes.Blue;
                         rightGlassRect.StrokeThickness = 2;
                         StatusText.Text = "Нажмите чтобы выбрать тип правой створки";
                     };
 
-                    rightGlassRect.MouseLeave += (s, e) => {
+                    rightGlassRect.MouseLeave += (s, e) =>
+                    {
                         rightGlassRect.Fill = glassColor;
                         rightGlassRect.Stroke = Brushes.DarkBlue;
                         rightGlassRect.StrokeThickness = 1.5;
                         StatusText.Text = "Готово";
                     };
 
-                    rightGlassRect.MouseLeftButtonUp += (s, e) => {
+                    rightGlassRect.MouseLeftButtonUp += (s, e) =>
+                    {
                         SelectPanelTypeParameter("Тип полотна двери 2");
                     };
 
@@ -2879,10 +2977,10 @@ namespace PlugINPRO
 
                     // Левый отступ правой створки - Рама двери2_Ширина слева
                     DrawGlassDimension(
-                        midX + 1, rectY - 25, rightGlassLeftX, rectY - 25,
+                        rightLeafX + 1, rectY - 25, rightGlassLeftX, rectY - 25,
                         rightGlassDimColor, rightLeftOffsetMm, "Правая створка - левый отступ",
                         () => SelectOtherParameter("Рама двери2_Ширина слева"),
-                        midX + 1 + (rightGlassLeftX - (midX + 1)) / 2 - 20, rectY - 45,
+                        rightLeafX + 1 + (rightGlassLeftX - (rightLeafX + 1)) / 2 - 20, rectY - 45,
                         true
                     );
 
@@ -2895,7 +2993,7 @@ namespace PlugINPRO
                         true
                     );
 
-                    // РУЧКИ ДЛЯ ДВУПОЛЬНОЙ ДВЕРИ
+                    // РУЧКИ ДЛЯ ДВУПОЛЬНОЙ ДВЕРИ (ВОЗВРАЩАЕМ В ИСХОДНОЕ ПОЛОЖЕНИЕ)
                     System.Windows.Shapes.Ellipse leftHandle = new System.Windows.Shapes.Ellipse
                     {
                         Width = 10,
@@ -2926,7 +3024,8 @@ namespace PlugINPRO
                         SelectHandleParameter("Ручка полотна 1");
                     };
 
-                    Canvas.SetLeft(leftHandle, rectX + halfWidth - 18);
+                    // Левая ручка - ближе к центру двери
+                    Canvas.SetLeft(leftHandle, rectX + leaf1WidthPx - 18);
                     Canvas.SetTop(leftHandle, rectY + rectHeight / 2 - 5);
                     DiagramCanvas.Children.Add(leftHandle);
 
@@ -2960,7 +3059,8 @@ namespace PlugINPRO
                         SelectHandleParameter("Ручка полотна 2");
                     };
 
-                    Canvas.SetLeft(rightHandle, rectX + halfWidth + 10);
+                    // Правая ручка - ближе к центру двери
+                    Canvas.SetLeft(rightHandle, rectX + leaf1WidthPx + 10);
                     Canvas.SetTop(rightHandle, rectY + rectHeight / 2 - 5);
                     DiagramCanvas.Children.Add(rightHandle);
                 }
@@ -3003,21 +3103,24 @@ namespace PlugINPRO
                     };
 
                     // Добавляем обработчики событий для остекления
-                    glassRect.MouseEnter += (s, e) => {
+                    glassRect.MouseEnter += (s, e) =>
+                    {
                         glassRect.Fill = glassHoverColor;
                         glassRect.Stroke = Brushes.Blue;
                         glassRect.StrokeThickness = 2;
                         StatusText.Text = "Нажмите чтобы выбрать тип полотна двери";
                     };
 
-                    glassRect.MouseLeave += (s, e) => {
+                    glassRect.MouseLeave += (s, e) =>
+                    {
                         glassRect.Fill = glassColor;
                         glassRect.Stroke = Brushes.DarkBlue;
                         glassRect.StrokeThickness = 1.5;
                         StatusText.Text = "Готово";
                     };
 
-                    glassRect.MouseLeftButtonUp += (s, e) => {
+                    glassRect.MouseLeftButtonUp += (s, e) =>
+                    {
                         SelectPanelTypeParameter("Тип полотна двери");
                     };
 
@@ -3147,7 +3250,8 @@ namespace PlugINPRO
                     Cursor = System.Windows.Input.Cursors.Hand,
                     ToolTip = "Изменить ширину"
                 };
-                widthLine1.MouseLeftButtonUp += (s, ev) => {
+                widthLine1.MouseLeftButtonUp += (s, ev) =>
+                {
                     WidthTextBox.Focus();
                     WidthTextBox.SelectAll();
                 };
@@ -3163,7 +3267,8 @@ namespace PlugINPRO
                     Cursor = System.Windows.Input.Cursors.Hand,
                     ToolTip = "Изменить ширину"
                 };
-                widthLine2.MouseLeftButtonUp += (s, ev) => {
+                widthLine2.MouseLeftButtonUp += (s, ev) =>
+                {
                     WidthTextBox.Focus();
                     WidthTextBox.SelectAll();
                 };
@@ -3179,7 +3284,8 @@ namespace PlugINPRO
                     Cursor = System.Windows.Input.Cursors.Hand,
                     ToolTip = "Изменить ширину"
                 };
-                widthLine3.MouseLeftButtonUp += (s, ev) => {
+                widthLine3.MouseLeftButtonUp += (s, ev) =>
+                {
                     WidthTextBox.Focus();
                     WidthTextBox.SelectAll();
                 };
@@ -3200,7 +3306,8 @@ namespace PlugINPRO
                     Cursor = System.Windows.Input.Cursors.Hand,
                     ToolTip = "Изменить ширину"
                 };
-                widthText.MouseLeftButtonUp += (s, ev) => {
+                widthText.MouseLeftButtonUp += (s, ev) =>
+                {
                     WidthTextBox.Focus();
                     WidthTextBox.SelectAll();
                 };
@@ -3221,7 +3328,8 @@ namespace PlugINPRO
                     Cursor = System.Windows.Input.Cursors.Hand,
                     ToolTip = "Изменить высоту"
                 };
-                heightLine1.MouseLeftButtonUp += (s, ev) => {
+                heightLine1.MouseLeftButtonUp += (s, ev) =>
+                {
                     HeightTextBox.Focus();
                     HeightTextBox.SelectAll();
                 };
@@ -3237,7 +3345,8 @@ namespace PlugINPRO
                     Cursor = System.Windows.Input.Cursors.Hand,
                     ToolTip = "Изменить высоту"
                 };
-                heightLine2.MouseLeftButtonUp += (s, ev) => {
+                heightLine2.MouseLeftButtonUp += (s, ev) =>
+                {
                     HeightTextBox.Focus();
                     HeightTextBox.SelectAll();
                 };
@@ -3253,7 +3362,8 @@ namespace PlugINPRO
                     Cursor = System.Windows.Input.Cursors.Hand,
                     ToolTip = "Изменить высоту"
                 };
-                heightLine3.MouseLeftButtonUp += (s, ev) => {
+                heightLine3.MouseLeftButtonUp += (s, ev) =>
+                {
                     HeightTextBox.Focus();
                     HeightTextBox.SelectAll();
                 };
@@ -3274,7 +3384,8 @@ namespace PlugINPRO
                     Cursor = System.Windows.Input.Cursors.Hand,
                     ToolTip = "Изменить высоту"
                 };
-                heightText.MouseLeftButtonUp += (s, ev) => {
+                heightText.MouseLeftButtonUp += (s, ev) =>
+                {
                     HeightTextBox.Focus();
                     HeightTextBox.SelectAll();
                 };
@@ -3295,10 +3406,375 @@ namespace PlugINPRO
                 Canvas.SetLeft(sourceIndicator, rectX + 5);
                 Canvas.SetTop(sourceIndicator, rectY + rectHeight - 15);
                 DiagramCanvas.Children.Add(sourceIndicator);
+
+                // ========== ДОБАВЛЯЕМ ТЕКСТ "РАВНЫЕ ПОЛОТНА" ПОД ИЗОБРАЖЕНИЕМ ==========
+                AddEqualLeavesText(rectX, rectY, rectWidth, rectHeight);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка отрисовки схемы: {ex.Message}");
+            }
+        }
+        // ========================= ПОЛУЧЕНИЕ ЗНАЧЕНИЯ ПАРАМЕТРА "РАВНЫЕ ПОЛОТНА" =========================
+        private bool GetEqualLeavesParameterValue()
+        {
+            try
+            {
+                if (_currentType == null) return false;
+
+                // Ищем параметр "Равные полотна" (можно добавить другие варианты названий)
+                string[] paramNames = new string[]
+                {
+            "Равные полотна",
+            "Равные створки",
+            "Equal Leaves",
+            "Equal Panels",
+            "Симметричные полотна",
+            "Симметричные створки"
+                };
+
+                foreach (string paramName in paramNames)
+                {
+                    Parameter param = _currentType.LookupParameter(paramName);
+                    if (param != null && param.HasValue)
+                    {
+                        if (param.StorageType == StorageType.Integer)
+                        {
+                            return param.AsInteger() != 0;
+                        }
+                        else if (param.StorageType == StorageType.Double)
+                        {
+                            return Math.Abs(param.AsDouble()) > 0.001;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка получения параметра 'Равные полотна': {ex.Message}");
+            }
+
+            return false;
+        }
+
+        // ========================= ПЕРЕКЛЮЧЕНИЕ ПАРАМЕТРА "РАВНЫЕ ПОЛОТНА" =========================
+        private void ToggleEqualLeavesParameter()
+        {
+            try
+            {
+                if (_currentType == null) return;
+
+                // Ищем параметр "Равные полотна"
+                string[] paramNames = new string[]
+                {
+            "Равные полотна",
+            "Равные створки",
+            "Equal Leaves",
+            "Equal Panels",
+            "Симметричные полотна",
+            "Симметричные створки"
+                };
+
+                Parameter targetParam = null;
+
+                foreach (string paramName in paramNames)
+                {
+                    targetParam = _currentType.LookupParameter(paramName);
+                    if (targetParam != null) break;
+                }
+
+                if (targetParam == null)
+                {
+                    StatusText.Text = "Параметр 'Равные полотна' не найден";
+                    return;
+                }
+
+                if (targetParam.IsReadOnly)
+                {
+                    StatusText.Text = "Параметр 'Равные полотна' доступен только для чтения";
+                    return;
+                }
+
+                // Получаем текущее значение
+                bool currentValue = false;
+                if (targetParam.HasValue)
+                {
+                    if (targetParam.StorageType == StorageType.Integer)
+                    {
+                        currentValue = targetParam.AsInteger() != 0;
+                    }
+                    else if (targetParam.StorageType == StorageType.Double)
+                    {
+                        currentValue = Math.Abs(targetParam.AsDouble()) > 0.001;
+                    }
+                }
+
+                // Новое значение (переключаем)
+                bool newValue = !currentValue;
+
+                // Сохраняем в транзакции
+                using (Transaction tx = new Transaction(_doc, "Изменение параметра Равные полотна"))
+                {
+                    tx.Start();
+
+                    if (targetParam.StorageType == StorageType.Integer)
+                    {
+                        targetParam.Set(newValue ? 1 : 0);
+                    }
+                    else if (targetParam.StorageType == StorageType.Double)
+                    {
+                        targetParam.Set(newValue ? 1.0 : 0.0);
+                    }
+
+                    tx.Commit();
+                }
+
+                // Обновляем интерфейс
+                StatusText.Text = newValue ?
+                    "✓ Равные полотна включены (симметричная дверь)" :
+                    "✗ Равные полотна выключены (реальные размеры)";
+
+                // Перерисовываем схему для обновления
+                DrawDoorDiagram();
+
+                // Активируем кнопку обновления
+                UpdateAndRefreshButton.IsEnabled = true;
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Ошибка при изменении параметра: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"Ошибка ToggleEqualLeavesParameter: {ex.Message}");
+            }
+        }
+
+        // ========================= ДОБАВЛЕНИЕ ТЕКСТА "РАВНЫЕ ПОЛОТНА" ПОД СХЕМОЙ =========================
+        private void AddEqualLeavesText(double rectX, double rectY, double rectWidth, double rectHeight)
+        {
+            try
+            {
+                // Получаем значение параметра "Равные полотна"
+                bool isEqualLeaves = GetEqualLeavesParameterValue();
+
+                // Создаем Border для фона текста
+                WpfBorder textBorder = new WpfBorder
+                {
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(200, 240, 240, 240)),
+                    CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(5, 2, 5, 2),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = "Нажмите чтобы изменить параметр 'Равные полотна'",
+                    Tag = "EqualLeavesText"
+                };
+
+                // Создаем горизонтальный StackPanel для текста и индикатора
+                WpfStackPanel textPanel = new WpfStackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+
+                // Текст "Равные полотна"
+                WpfTextBlock textBlock = new WpfTextBlock
+                {
+                    Text = "Равные полотна:",
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Brushes.Black,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 3, 0)
+                };
+
+                // Индикатор состояния (галочка или крестик)
+                WpfBorder indicatorBorder = new WpfBorder
+                {
+                    Width = 14,
+                    Height = 14,
+                    CornerRadius = new CornerRadius(2),
+                    BorderBrush = Brushes.Gray,
+                    BorderThickness = new Thickness(1),
+                    Background = isEqualLeaves ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(76, 175, 80)) : Brushes.LightGray,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                // Текст внутри индикатора (✓ для включено, ✗ для выключено)
+                WpfTextBlock indicatorText = new WpfTextBlock
+                {
+                    Text = isEqualLeaves ? "✓" : "✗",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                indicatorBorder.Child = indicatorText;
+
+                // Добавляем элементы в панель
+                textPanel.Children.Add(textBlock);
+                textPanel.Children.Add(indicatorBorder);
+
+                textBorder.Child = textPanel;
+
+                // Добавляем обработчики событий
+                textBorder.MouseEnter += (s, e) => {
+                    textBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 220, 230, 240));
+                    textBorder.BorderBrush = Brushes.Blue;
+                    textBorder.BorderThickness = new Thickness(1);
+                    StatusText.Text = "Нажмите чтобы изменить параметр 'Равные полотна'";
+                };
+
+                textBorder.MouseLeave += (s, e) => {
+                    textBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(200, 240, 240, 240));
+                    textBorder.BorderBrush = Brushes.Transparent;
+                    textBorder.BorderThickness = new Thickness(0);
+                    StatusText.Text = "Готово";
+                };
+
+                textBorder.MouseLeftButtonUp += (s, e) => {
+                    ToggleEqualLeavesParameter();
+                };
+
+                // Размещаем текст под изображением двери (по центру)
+                double textX = rectX + (rectWidth / 2) - 45;
+                double textY = rectY + rectHeight + 55; // Смещаем ниже, чтобы не перекрывать размеры
+
+                Canvas.SetLeft(textBorder, textX);
+                Canvas.SetTop(textBorder, textY);
+
+                // Добавляем на канвас
+                DiagramCanvas.Children.Add(textBorder);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка при добавлении текста 'Равные полотна': {ex.Message}");
+            }
+        }
+
+        // ========================= МЕТОД ДЛЯ ОТРИСОВКИ РАЗМЕРОВ ПОЛОТЕН =========================
+        private void DrawLeafDimension(double x1, double y1, double x2, double y2,
+                                      SolidColorBrush color, double valueMm, string tooltip,
+                                      Action clickAction, double textX, double textY,
+                                      bool isHorizontal = false, bool isClickable = true)
+        {
+            try
+            {
+                // Основная линия
+                System.Windows.Shapes.Line dimensionLine = new System.Windows.Shapes.Line
+                {
+                    X1 = x1,
+                    Y1 = y1,
+                    X2 = x2,
+                    Y2 = y2,
+                    Stroke = color,
+                    StrokeThickness = 1.5,
+                    StrokeDashArray = new DoubleCollection { 2, 2 },
+                    Cursor = isClickable ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow,
+                    ToolTip = isClickable ? $"{tooltip}: {valueMm:F0} мм\nНажмите для изменения" : $"{tooltip}: {valueMm:F0} мм"
+                };
+
+                if (isClickable && clickAction != null)
+                {
+                    dimensionLine.MouseLeftButtonUp += (s, e) => clickAction();
+                }
+                DiagramCanvas.Children.Add(dimensionLine);
+
+                // Засечки
+                if (isHorizontal)
+                {
+                    // Горизонтальные засечки (вертикальные линии)
+                    System.Windows.Shapes.Line tick1 = new System.Windows.Shapes.Line
+                    {
+                        X1 = x1,
+                        Y1 = y1 - 5,
+                        X2 = x1,
+                        Y2 = y1 + 5,
+                        Stroke = color,
+                        StrokeThickness = 1.5,
+                        Cursor = isClickable ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow
+                    };
+                    if (isClickable && clickAction != null)
+                    {
+                        tick1.MouseLeftButtonUp += (s, e) => clickAction();
+                    }
+                    DiagramCanvas.Children.Add(tick1);
+
+                    System.Windows.Shapes.Line tick2 = new System.Windows.Shapes.Line
+                    {
+                        X1 = x2,
+                        Y1 = y2 - 5,
+                        X2 = x2,
+                        Y2 = y2 + 5,
+                        Stroke = color,
+                        StrokeThickness = 1.5,
+                        Cursor = isClickable ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow
+                    };
+                    if (isClickable && clickAction != null)
+                    {
+                        tick2.MouseLeftButtonUp += (s, e) => clickAction();
+                    }
+                    DiagramCanvas.Children.Add(tick2);
+                }
+                else
+                {
+                    // Вертикальные засечки (горизонтальные линии)
+                    System.Windows.Shapes.Line tick1 = new System.Windows.Shapes.Line
+                    {
+                        X1 = x1 - 5,
+                        Y1 = y1,
+                        X2 = x1 + 5,
+                        Y2 = y1,
+                        Stroke = color,
+                        StrokeThickness = 1.5,
+                        Cursor = isClickable ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow
+                    };
+                    if (isClickable && clickAction != null)
+                    {
+                        tick1.MouseLeftButtonUp += (s, e) => clickAction();
+                    }
+                    DiagramCanvas.Children.Add(tick1);
+
+                    System.Windows.Shapes.Line tick2 = new System.Windows.Shapes.Line
+                    {
+                        X1 = x2 - 5,
+                        Y1 = y2,
+                        X2 = x2 + 5,
+                        Y2 = y2,
+                        Stroke = color,
+                        StrokeThickness = 1.5,
+                        Cursor = isClickable ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow
+                    };
+                    if (isClickable && clickAction != null)
+                    {
+                        tick2.MouseLeftButtonUp += (s, e) => clickAction();
+                    }
+                    DiagramCanvas.Children.Add(tick2);
+                }
+
+                // Текст с значением
+                WpfTextBlock dimensionText = new WpfTextBlock
+                {
+                    Text = $"{valueMm:F0} мм",
+                    Foreground = color,
+                    FontSize = 9,
+                    FontWeight = FontWeights.Bold,
+                    Background = Brushes.White,
+                    Padding = new Thickness(2),
+                    Cursor = isClickable ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow,
+                    ToolTip = isClickable ? $"{tooltip}: {valueMm:F0} мм\nНажмите для изменения" : $"{tooltip}: {valueMm:F0} мм"
+                };
+
+                if (isClickable && clickAction != null)
+                {
+                    dimensionText.MouseLeftButtonUp += (s, e) => clickAction();
+                }
+
+                Canvas.SetLeft(dimensionText, textX);
+                Canvas.SetTop(dimensionText, textY);
+                DiagramCanvas.Children.Add(dimensionText);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в DrawLeafDimension: {ex.Message}");
             }
         }
     }
