@@ -3,7 +3,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
-using RevitHelloWorld;
+using PlugINPRO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -459,9 +459,13 @@ namespace PlugINPRO
                     if (currentDistance >= curveLength && points.Count > 0)
                     {
                         double distanceToEnd = curveLength - (currentDistance - spacing);
-                        if (distanceToEnd > spacing * 0.5)
+
+                        // ✅ ИСПРАВЛЕНО: добавляем точку, если осталось больше 1 мм (0.00328 фута)
+                        double minDistanceFeet = 1.0 / 304.8; // 1 мм в футах
+                        if (distanceToEnd > minDistanceFeet)
                         {
-                            XYZ endPoint = GetPointAtDistance(curve, curveLength - 0.01);
+                            // ✅ ИСПРАВЛЕНО: берем точку строго на конце
+                            XYZ endPoint = GetPointAtDistance(curve, curveLength);
                             if (endPoint != null)
                             {
                                 points.Add(endPoint);
@@ -480,7 +484,6 @@ namespace PlugINPRO
                         points.Add(middlePoint);
                     }
                 }
-
             }
             catch (Exception ex)
             {
@@ -495,16 +498,27 @@ namespace PlugINPRO
         {
             try
             {
+                // ✅ ИСПРАВЛЕНО: допуск 0.001 фута (0.3 мм)
+                double tolerance = 0.0001; // 0.03 мм
                 if (distance < 0) distance = 0;
-                if (distance > curve.Length) distance = curve.Length - 0.001;
+                if (distance > curve.Length) distance = curve.Length;
+
+                // ✅ ИСПРАВЛЕНО: для конца используем точное значение
+                if (Math.Abs(distance - curve.Length) < tolerance)
+                {
+                    return curve.GetEndPoint(1);
+                }
 
                 if (curve is Line line)
                 {
                     XYZ start = line.GetEndPoint(0);
                     XYZ end = line.GetEndPoint(1);
 
+                    // ✅ ИСПРАВЛЕНО: используем параметр t от 0 до 1
                     double t = distance / curve.Length;
+                    t = Math.Max(0.0, Math.Min(1.0, t));
 
+                    // Линейная интерполяция (точнее чем Evaluate для Line)
                     return new XYZ(
                         start.X + t * (end.X - start.X),
                         start.Y + t * (end.Y - start.Y),
@@ -513,29 +527,13 @@ namespace PlugINPRO
                 }
                 else
                 {
-                    try
-                    {
-                        double param = distance / curve.Length;
-                        param = Math.Max(0.0, Math.Min(1.0, param));
-
-                        return curve.Evaluate(param, false);
-                    }
-                    catch
-                    {
-                        XYZ start = curve.GetEndPoint(0);
-                        XYZ end = curve.GetEndPoint(1);
-                        double t = distance / curve.Length;
-                        t = Math.Max(0.0, Math.Min(1.0, t));
-
-                        return new XYZ(
-                            start.X + t * (end.X - start.X),
-                            start.Y + t * (end.Y - start.Y),
-                            start.Z + t * (end.Z - start.Z)
-                        );
-                    }
+                    // Для изогнутых кривых
+                    double param = distance / curve.Length;
+                    param = Math.Max(0.0, Math.Min(1.0, param));
+                    return curve.Evaluate(param, false);
                 }
             }
-            catch (Exception ex)
+            catch
             {
                 return curve.GetEndPoint(0);
             }

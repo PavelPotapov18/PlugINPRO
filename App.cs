@@ -6,8 +6,7 @@ using System.Reflection;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 
-
-namespace RevitHelloWorld
+namespace PlugINPRO
 {
     public class App : IExternalApplication
     {
@@ -212,7 +211,7 @@ namespace RevitHelloWorld
                 Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
                 ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств"
             };
-            
+
             bimPanel.AddItem(IfcRvtButtonData);
 
             // Добавим после существующих панелей или в соответствующем месте
@@ -233,6 +232,7 @@ namespace RevitHelloWorld
             };
 
             arPanel.AddItem(doorEditorButtonData);
+
             // ============================================
             // ПАНЕЛЬ ОВ (Отопление и Вентиляция)
             // ============================================
@@ -251,10 +251,9 @@ namespace RevitHelloWorld
                 ToolTip = "Расстановка опор по траектории воздуховода\nВключает выбор крепления и шага"
             };
             ovPanel.AddItem(ductSupportsButtonData);
-            // ============================================
 
             // ============================================
-            // НОВАЯ ПАНЕЛЬ ЭОМ (Электромонтаж)
+            // ПАНЕЛЬ ЭОМ (Электромонтаж)
             // ============================================
             RibbonPanel eomPanel = application.CreateRibbonPanel("INPRO", "ЭОМ");
 
@@ -270,12 +269,11 @@ namespace RevitHelloWorld
                 Image = LoadImage("PlugINPRO.Resources.CableTrayFitting16.png"),
                 ToolTip = "Расстановка опор по траектории кабельного лотка\nВключает выбор крепления и шага"
             };
-            
+
             eomPanel.AddItem(cableTraySupportsButtonData);
-            // ============================================
 
             // ============================================
-            // НОВАЯ ПАНЕЛЬ ВК (Водопровод и канализация)
+            // ПАНЕЛЬ ВК (Водопровод и канализация)
             // ============================================
             RibbonPanel vkPanel = application.CreateRibbonPanel("INPRO", "ВК");
 
@@ -291,8 +289,45 @@ namespace RevitHelloWorld
                 Image = LoadImage("PlugINPRO.Resources.PipeFitting16.png"),
                 ToolTip = "Расстановка опор по траектории трубопровода\nВключает выбор крепления и шага"
             };
-            
+
             vkPanel.AddItem(pipeSupportsButtonData);
+
+            // ============================================
+            // НОВАЯ ПАНЕЛЬ ТС (Тепловые сети)
+            // ============================================
+            RibbonPanel tsPanel = application.CreateRibbonPanel("INPRO", "ТС");
+
+            // Кнопка "Размеры на аксонометрии"
+            PushButtonData dimensionButtonData = new PushButtonData(
+                "AxonometricDimension",
+                "Размеры на\nаксонометрии",
+                assemblyPath,
+                "PlugINPRO.AxonometricDimensionCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.dimension32.png"),
+                Image = LoadImage("PlugINPRO.Resources.dimension16.png"),
+                ToolTip = "Простановка размеров на аксонометрических видах",
+                LongDescription = "Проставляет размеры на выбранных трубах. Режим работы настраивается в окне настроек"
+            };
+
+            tsPanel.AddItem(dimensionButtonData);
+
+            // Кнопка "Настройки"
+            PushButtonData settingsButtonData = new PushButtonData(
+                "DimensionSettings",
+                "Настройки\nразмеров",
+                assemblyPath,
+                "PlugINPRO.DimensionSettingsCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.settings32.png"),
+                Image = LoadImage("PlugINPRO.Resources.settings16.png"),
+                ToolTip = "Настройка параметров простановки размеров",
+                LongDescription = "Выбор режима простановки размеров и типа размера"
+            };
+
+            tsPanel.AddItem(settingsButtonData);
             // ============================================
 
             return Result.Succeeded;
@@ -304,7 +339,7 @@ namespace RevitHelloWorld
             return Result.Succeeded;
         }
 
-        private BitmapImage LoadImage(string resourceName)  
+        private BitmapImage LoadImage(string resourceName)
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
 
