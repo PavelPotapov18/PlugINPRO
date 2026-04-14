@@ -1,0 +1,58 @@
+﻿<Window x:Class="PlugINPRO.UI.Windows.IFC.IFCPaintWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             Title="Покраска IFC"
+             Height="230"
+             Width="350"
+             WindowStartupLocation="CenterScreen"
+             ResizeMode="NoResize">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="0"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row ="0" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Vertical" Height="30" Width="270">
+            <TextBlock Text="Введите имя фильтра:" FontSize="9" Width="260"/>
+            <TextBox x:Name="FilterNameBox"
+             Width="260"
+             Margin="5,0"
+             Text=""
+             TextAlignment="Left" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row ="1" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal" Height="20" Width="40">
+            <Border x:Name="ColorPreview"
+                    Width="40"
+                    Height="20"
+                    BorderBrush="Black"
+                    BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal" Height="30" Width="130">
+            <Button Content="Выбрать цвет"
+             Width="120"
+             Margin="5"
+             Click="PickColor_Click"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal"
+            HorizontalAlignment="Center" Grid.Row="3" Height="30" VerticalAlignment="Center" Width="160">
+
+            <Button Content="OK"
+            Width="70"
+            Margin="5"
+            Click="Ok_Click"/>
+
+            <Button Content="Cancel"
+            Width="70"
+            Margin="5"
+            Click="Cancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

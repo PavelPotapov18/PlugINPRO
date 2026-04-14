@@ -51,10 +51,11 @@ namespace PlugINPRO
                 "LogoButton",
                 "Info",
                 assemblyPath,
-                "PlugINPRO.InfoCommand"
+                "PlugINPRO.Commands.PluginInfo.InfoCommand"
                 )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.info32.png"),
+                Image = LoadImage("PlugINPRO.Resources.info16.png"),
                 ToolTip = "PlugINPRO v1.0",
                 LongDescription = "О плагине"
             };
@@ -70,7 +71,7 @@ namespace PlugINPRO
                 "RevisionButton",
                 "Ревизии\nи ИЗМы",
                 assemblyPath,
-                "PlugINPRO.RevIZMCommand"
+                "PlugINPRO.Commands.Common.RevIZMCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.R00_32.png"),
@@ -86,7 +87,7 @@ namespace PlugINPRO
                 "GridsButton",
                 "Оси/Уровни\nоткл.",
                 assemblyPath,
-                "PlugINPRO.GridsOffCommand"
+                "PlugINPRO.Commands.Common.GridsOffCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.grids32.png"),
@@ -101,7 +102,7 @@ namespace PlugINPRO
                 "WorksetsButton",
                 "Проверка\nраб.наборов",
                 assemblyPath,
-                "PlugINPRO.WorksetsCheckCommand"
+                "PlugINPRO.Commands.Common.WorksetsCheckCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.Worksets32.png"),
@@ -116,11 +117,11 @@ namespace PlugINPRO
                 "ThreeDByWorksetsButton",
                 "3D по\nраб.наборам",
                 assemblyPath,
-                "PlugINPRO.ThreeDByWorksetsCommand"
+                "PlugINPRO.Commands.Common.ThreeDByWorksetsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.Worksets32.png"),
-                Image = LoadImage("PlugINPRO.Resources.Worksets16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.cube32.png"),
+                Image = LoadImage("PlugINPRO.Resources.cube16.png"),
                 ToolTip = "Создание 3D видов по рабочим наборам",
                 LongDescription = "Создает отдельные 3D виды, содержащие элементы только одного конкретного рабочего набора"
             };
@@ -131,7 +132,7 @@ namespace PlugINPRO
                 "PdfDwgExportButton",
                 "Экспорт\nPDF и DWG",
                 assemblyPath,
-                "PlugINPRO.PdfDwgExportCommand"
+                "PlugINPRO.Commands.Common.PdfDwgExportCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.export32.png"),
@@ -149,7 +150,7 @@ namespace PlugINPRO
                 "IFCByCoordinates",
                 "IFC по\nкоординатам",
                 assemblyPath,
-                "PlugINPRO.IFCByCoordinatesCommand"
+                "PlugINPRO.Commands.IFC.IFCByCoordinatesCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
@@ -162,7 +163,7 @@ namespace PlugINPRO
                 "ResetCoordinates",
                 "Сбросить",
                 assemblyPath,
-                "PlugINPRO.ResetCoordinatesCommand"
+                "PlugINPRO.Commands.IFC.ResetCoordinatesCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
@@ -174,7 +175,7 @@ namespace PlugINPRO
                 "IFCPaint",
                 "Покраска IFC элементов",
                 assemblyPath,
-                "PlugINPRO.IFCPaintCommand"
+                "PlugINPRO.Commands.IFC.IFCPaintCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
@@ -204,7 +205,7 @@ namespace PlugINPRO
                 "IFСtoRVT",
                 "IFC в RVT",
                 assemblyPath,
-                "PlugINPRO.IFCtoRVTCommand"
+                "PlugINPRO.Commands.BIM.IFCtoRVTCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
@@ -222,7 +223,7 @@ namespace PlugINPRO
                 "DoorEditor",
                 "Редактор\nдверей",
                 assemblyPath,
-                "PlugINPRO.DoorEditorCommand"
+                "PlugINPRO.Commands.AR.DoorEditorCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.dooredit32.png"),
@@ -243,7 +244,7 @@ namespace PlugINPRO
                 "DuctSupports",
                 "Опоры\nвоздуховодов",
                 Assembly.GetExecutingAssembly().Location,
-                "PlugINPRO.DuctSupportsCommand"
+                "PlugINPRO.Commands.OV.DuctSupportsCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.DuctFitting32.png"),
@@ -262,7 +263,7 @@ namespace PlugINPRO
                 "CableTraySupports",
                 "Опоры\nлотков",
                 Assembly.GetExecutingAssembly().Location,
-                "PlugINPRO.CableTraySupportsCommand"
+                "PlugINPRO.Commands.ES.CableTraySupportsCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.CableTrayFitting32.png"),
@@ -282,7 +283,7 @@ namespace PlugINPRO
                 "PipeSupports",
                 "Опоры\nтрубопроводов",
                 Assembly.GetExecutingAssembly().Location,
-                "PlugINPRO.PipeSupportsCommand"
+                "PlugINPRO.Commands.VK.PipeSupportsCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.PipeFitting32.png"),
@@ -302,12 +303,12 @@ namespace PlugINPRO
                 "AxonometricDimension",
                 "Размеры на\nаксонометрии",
                 assemblyPath,
-                "PlugINPRO.AxonometricDimensionCommand"
+                "PlugINPRO.Commands.TS.AxonometricDimensionCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.dimension32.png"),
-                Image = LoadImage("PlugINPRO.Resources.dimension16.png"),
-                ToolTip = "Простановка размеров на аксонометрических видах",
+                LargeImage = LoadImage("PlugINPRO.Resources.dimensions32.png"),
+                Image = LoadImage("PlugINPRO.Resources.dimensions16.png"),
+                ToolTip = "Расстановка размеров на аксонометрических видах",
                 LongDescription = "Проставляет размеры на выбранных трубах. Режим работы настраивается в окне настроек"
             };
 
@@ -318,7 +319,7 @@ namespace PlugINPRO
                 "DimensionSettings",
                 "Настройки\nразмеров",
                 assemblyPath,
-                "PlugINPRO.DimensionSettingsCommand"
+                "PlugINPRO.Commands.TS.DimensionSettingsCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.settings32.png"),

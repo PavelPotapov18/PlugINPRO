@@ -1,0 +1,211 @@
+﻿<Window x:Class="PlugINPRO.UI.Windows.Common.PdfDwgExportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PDF / DWG Export"
+        Height="760"
+        Width="650"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="15">
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- ========================= -->
+            <!-- ОСНОВНЫЕ ПАРАМЕТРЫ -->
+            <!-- ========================= -->
+
+            <GroupBox Header="Основные параметры" FontWeight="Bold">
+                <StackPanel Margin="10">
+
+                    <TextBlock Text="Комплект:"/>
+                    <ComboBox x:Name="PackageCombo"
+                              Height="25"
+                              Margin="0,5,0,10"
+                              SelectionChanged="AnyValueChanged"/>
+
+                    <TextBlock Text="Статус проекта:"/>
+                    <ComboBox x:Name="StatusCombo"
+                              Height="25"
+                              Margin="0,5,0,10"/>
+
+                    <TextBlock Text="Папка экспорта:"/>
+                    <DockPanel Margin="0,5,0,10">
+                        <TextBox x:Name="DirectoryBox"
+                                 Height="25"
+                                 Width="500"/>
+                        <Button Content="..."
+                                Width="30"
+                                Margin="5,0,0,0"
+                                Click="Browse_Click"/>
+                    </DockPanel>
+
+                    <TextBlock Text="Настройка DWG экспорта:"/>
+                    <ComboBox x:Name="DwgSetupCombo"
+                              Height="25"
+                              Margin="0,5,0,0"/>
+
+                </StackPanel>
+            </GroupBox>
+
+            <!-- ========================= -->
+            <!-- ИМЯ КОМПЛЕКТА -->
+            <!-- ========================= -->
+
+            <GroupBox Header="Формирование имени комплекта"
+                      Grid.Row="1"
+                      Margin="0,15,0,0"
+                      FontWeight="Bold">
+
+                <StackPanel Margin="10">
+
+                    <StackPanel Orientation="Horizontal">
+
+                        <TextBlock Text="{}{Номер проекта}"
+                                   VerticalAlignment="Center"/>
+
+                        <TextBox x:Name="Sep1Box"
+                                 Width="25"
+                                 Margin="5,0"
+                                 Text="-"
+                                 TextChanged="AnyValueChanged" 
+                                 TextAlignment="Center"/>
+
+                        <TextBlock Text="{}{Номер здания}"
+                                   VerticalAlignment="Center"/>
+
+                        <TextBox x:Name="Sep2Box"
+                                 Width="25"
+                                 Margin="5,0"
+                                 Text="-"
+                                 TextChanged="AnyValueChanged" 
+                                 TextAlignment="Center"/>
+
+                        <TextBlock Text="{}{Комплект}"
+                                   VerticalAlignment="Center"/>
+
+                    </StackPanel>
+
+                    <CheckBox x:Name="AddOprSuffixCheck"
+                              Content="Добавлять суффикс .ОПР"
+                              Margin="0,10,0,0"
+                              IsChecked="True"
+                              Checked="AnyValueChanged"
+                              Unchecked="AnyValueChanged"/>
+
+                </StackPanel>
+            </GroupBox>
+
+            <!-- ========================= -->
+            <!-- ИМЯ ЛИСТА -->
+            <!-- ========================= -->
+
+            <GroupBox Header="Формирование имени листа"
+                      Grid.Row="2"
+                      Margin="0,15,0,0"
+                      FontWeight="Bold">
+
+                <StackPanel Margin="10" Orientation="Horizontal">
+
+                    <TextBlock Text="{}{Имя комплекта}"
+                               VerticalAlignment="Center"/>
+
+                    <TextBox x:Name="Sep3Box"
+                             Width="25"
+                             Margin="5,0"
+                             Text="_"
+                             TextChanged="AnyValueChanged"
+                             TextAlignment="Center"/>
+
+                    <TextBlock Text="{}{AFRY_Нули}_R{Текущая ревизия}_Izm{INP_Изм.тек.}"
+                               VerticalAlignment="Center"/>
+
+                </StackPanel>
+            </GroupBox>
+
+            <!-- ========================= -->
+            <!-- АЛЬТЕРНАТИВНОЕ ИМЯ -->
+            <!-- ========================= -->
+
+            <GroupBox Header="Альтернативное имя"
+                      Grid.Row="3"
+                      Margin="0,15,0,0"
+                      FontWeight="Bold">
+
+                <StackPanel Margin="10">
+
+                    <CheckBox x:Name="AlternativeCheck"
+                              Content="Использовать альтернативное наименование"
+                              Margin="0,0,0,10"
+                              Checked="AlternativeCheck_Changed"
+                              Unchecked="AlternativeCheck_Changed"/>
+
+                    <StackPanel x:Name="AlternativePanel"
+                                Orientation="Horizontal"
+                                IsEnabled="False">
+
+                        <TextBox x:Name="AlternativePrefixBox"
+                                 Width="140"
+                                 TextChanged="AnyValueChanged"/>
+
+                        <TextBlock Text=" Лист {Номер листа}_Izm{INP_Изм.тек.}"
+                                   VerticalAlignment="Center"
+                                   Margin="5,0,0,0"/>
+
+                    </StackPanel>
+
+                </StackPanel>
+            </GroupBox>
+
+            <!-- ========================= -->
+            <!-- LIVE PREVIEW -->
+            <!-- ========================= -->
+
+            <GroupBox Header="Пример имени"
+                      Grid.Row="4"
+                      Margin="0,15,0,0"
+                      FontWeight="Bold">
+
+                <StackPanel Margin="10">
+                    <TextBlock x:Name="PreviewText"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+            </GroupBox>
+
+            <!-- ========================= -->
+            <!-- КНОПКИ -->
+            <!-- ========================= -->
+
+            <StackPanel Grid.Row="6"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,20,0,0">
+
+                <Button Content="OK"
+                        Width="90"
+                        Margin="5"
+                        Click="Ok_Click"/>
+
+                <Button Content="Cancel"
+                        Width="90"
+                        Margin="5"
+                        Click="Cancel_Click"/>
+
+            </StackPanel>
+
+        </Grid>
+    </ScrollViewer>
+</Window>

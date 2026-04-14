@@ -55,106 +55,106 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
-    <Compile Include="AxonometricDimensionCommand.cs" />
-    <Compile Include="CableTrayFittingSettingsWindow.xaml.cs">
+    <Compile Include="Commands\TS\AxonometricDimensionCommand.cs" />
+    <Compile Include="UI\Windows\ES\CableTrayFittingSettingsWindow.xaml.cs">
       <DependentUpon>CableTrayFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="CableTraySupportCommand.cs" />
-    <Compile Include="DimensionSettings.xaml.cs">
+    <Compile Include="Commands\ES\CableTraySupportCommand.cs" />
+    <Compile Include="UI\Windows\TS\DimensionSettings.xaml.cs">
       <DependentUpon>DimensionSettings.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DimensionSettingsCommand.cs" />
-    <Compile Include="DimensionSettingsData.cs" />
-    <Compile Include="DoorEditorCommand.cs" />
-    <Compile Include="DoorPreviewWindow.xaml.cs">
+    <Compile Include="Commands\TS\DimensionSettingsCommand.cs" />
+    <Compile Include="Commands\TS\DimensionSettingsData.cs" />
+    <Compile Include="Commands\AR\DoorEditorCommand.cs" />
+    <Compile Include="UI\Windows\AR\DoorPreviewWindow.xaml.cs">
       <DependentUpon>DoorPreviewWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DuctFittingSettingsWindow.xaml.cs">
+    <Compile Include="UI\Windows\OV\DuctFittingSettingsWindow.xaml.cs">
       <DependentUpon>DuctFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DuctSupportCommand.cs" />
-    <Compile Include="GridsOffCommand.cs" />
-    <Compile Include="GridsOffWindow.xaml.cs">
+    <Compile Include="Commands\OV\DuctSupportCommand.cs" />
+    <Compile Include="Commands\Common\GridsOffCommand.cs" />
+    <Compile Include="UI\Windows\Common\GridsOffWindow.xaml.cs">
       <DependentUpon>GridsOffWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="IFCPaintCommand.cs" />
-    <Compile Include="IFCPaintWindow.xaml.cs">
+    <Compile Include="Commands\IFC\IFCPaintCommand.cs" />
+    <Compile Include="UI\Windows\IFC\IFCPaintWindow.xaml.cs">
       <DependentUpon>IFCPaintWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="IFCRVTWindow.xaml.cs">
+    <Compile Include="UI\Windows\BIM\IFCRVTWindow.xaml.cs">
       <DependentUpon>IFCRVTWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="IFCtoRVTCommand.cs" />
-    <Compile Include="PdfDwgExportWindow.xaml.cs">
+    <Compile Include="Commands\BIM\IFCtoRVTCommand.cs" />
+    <Compile Include="UI\Windows\Common\PdfDwgExportWindow.xaml.cs">
       <DependentUpon>PdfDwgExportWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="PipeFittingSettingsWindow.xaml.cs">
+    <Compile Include="UI\Windows\VK\PipeFittingSettingsWindow.xaml.cs">
       <DependentUpon>PipeFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="PipeSupportCommand.cs" />
-    <Compile Include="InfoCommand.cs" />
-    <Compile Include="InfoWindow.xaml.cs">
+    <Compile Include="Commands\VK\PipeSupportCommand.cs" />
+    <Compile Include="Commands\PluginInfo\InfoCommand.cs" />
+    <Compile Include="UI\Windows\PluginInfo\InfoWindow.xaml.cs">
       <DependentUpon>InfoWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="PdfDwgExportCommand.cs" />
-    <Compile Include="RevIZMCommand.cs" />
-    <Compile Include="IFCByCoordinatesCommand.cs" />
+    <Compile Include="Commands\Common\PdfDwgExportCommand.cs" />
+    <Compile Include="Commands\Common\RevIZMCommand.cs" />
+    <Compile Include="Commands\IFC\IFCByCoordinatesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="IFCWindow.xaml.cs">
+    <Compile Include="UI\Windows\IFC\IFCWindow.xaml.cs">
       <DependentUpon>IFCWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ThreeDByWorksetsCommand.cs" />
-    <Compile Include="WorksetsCheckCommand.cs" />
-    <Compile Include="WorksetsCheckWindow.xaml.cs">
+    <Compile Include="Commands\Common\ThreeDByWorksetsCommand.cs" />
+    <Compile Include="Commands\Common\WorksetsCheckCommand.cs" />
+    <Compile Include="UI\Windows\Common\WorksetsCheckWindow.xaml.cs">
       <DependentUpon>WorksetsCheckWindow.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Page Include="CableTrayFittingSettingsWindow.xaml">
+    <Page Include="UI\Windows\ES\CableTrayFittingSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="DimensionSettings.xaml">
+    <Page Include="UI\Windows\TS\DimensionSettings.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="DoorPreviewWindow.xaml">
+    <Page Include="UI\Windows\AR\DoorPreviewWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="DuctFittingSettingsWindow.xaml">
+    <Page Include="UI\Windows\OV\DuctFittingSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="GridsOffWindow.xaml">
+    <Page Include="UI\Windows\Common\GridsOffWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="IFCPaintWindow.xaml">
+    <Page Include="UI\Windows\IFC\IFCPaintWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="IFCRVTWindow.xaml">
+    <Page Include="UI\Windows\BIM\IFCRVTWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="IFCWindow.xaml">
+    <Page Include="UI\Windows\IFC\IFCWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="PdfDwgExportWindow.xaml">
+    <Page Include="UI\Windows\Common\PdfDwgExportWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="PipeFittingSettingsWindow.xaml">
+    <Page Include="UI\Windows\VK\PipeFittingSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="InfoWindow.xaml">
+    <Page Include="UI\Windows\PluginInfo\InfoWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="WorksetsCheckWindow.xaml">
+    <Page Include="UI\Windows\Common\WorksetsCheckWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -210,6 +210,21 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\dooredit16.png" />
     <EmbeddedResource Include="Resources\dooredit32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\dimensions16.png" />
+    <EmbeddedResource Include="Resources\dimensions32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\info16.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\settings16.png" />
+    <EmbeddedResource Include="Resources\settings32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\cube16.png" />
+    <EmbeddedResource Include="Resources\cube32.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
