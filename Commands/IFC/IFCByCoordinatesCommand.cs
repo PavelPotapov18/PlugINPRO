@@ -10,6 +10,7 @@ using PlugINPRO.UI.Windows.IFC;
 namespace PlugINPRO.Commands.IFC
 {
     [Transaction(TransactionMode.Manual)]
+
     public class IFCByCoordinatesCommand : IExternalCommand
     {
         public Result Execute(
@@ -36,58 +37,59 @@ namespace PlugINPRO.Commands.IFC
 
 
                 // 2. ВЫБОР IFC
-                Reference selectedRef = null;
+                IList<Element> selectedLinks = null;
                 try
                 {
-                    selectedRef = uiDoc.Selection.PickObject(
-                        ObjectType.Element,
-                        "Выберите IFC связь");
+                    selectedLinks = SelectionHelper.LinksSelector(uiDoc);
                 }
                 catch
                 {
                     return Result.Cancelled;
                 }
 
-                if (selectedRef == null) return Result.Cancelled;
+                if (selectedLinks == null) return Result.Cancelled;
 
-                // 3. ПРОВЕРКА
-                Element selectedElement = doc.GetElement(selectedRef);
-                RevitLinkInstance link = selectedElement as RevitLinkInstance;
 
-                if (link == null)
+                foreach (Element element in selectedLinks)
                 {
-                    TaskDialog.Show("Ошибка", "Выбранный элемент не является IFC связью");
-                    return Result.Cancelled;
-                }
-                // 4. ПОДТВЕРЖДЕНИЕ
-                TaskDialogResult confirm = TaskDialog.Show(
-                    "Подтверждение",
-                    $"Переместить '{link.Name}'?\n" +
-                    $"Координаты: X={x_mm} мм, Y={y_mm} мм, Z={z_mm} мм",
-                    TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
-
-                if (confirm != TaskDialogResult.Yes) return Result.Cancelled;
-                // 5. ПЕРЕМЕЩЕНИЕ
-                using (Transaction trans = new Transaction(doc, "IFC по координатам"))
-                {
-                    trans.Start();
-
-                    bool success = MoveIFC(doc, link, x_mm, y_mm, z_mm);
-
-                    trans.Commit();
-
-                    if (success)
+                    // 3. ПРОВЕРКА
+                    RevitLinkInstance link = element as RevitLinkInstance;
+                    if (link == null)
                     {
-                        TaskDialog.Show("Успех",
-                            $"IFC перемещена на:\n" +
-                            $"X={x_mm} мм, Y={y_mm} мм, Z={z_mm} мм");
+                        TaskDialog.Show("Ошибка", "Выбранный элемент не является IFC связью");
+                        return Result.Cancelled;
                     }
-                    else
+
+                    // 4. ПОДТВЕРЖДЕНИЕ
+                    TaskDialogResult confirm = TaskDialog.Show(
+                        "Подтверждение",
+                        $"Переместить '{link.Name}'?\n" +
+                        $"Координаты: X={x_mm} мм, Y={y_mm} мм, Z={z_mm} мм",
+                        TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
+
+                    if (confirm != TaskDialogResult.Yes) return Result.Cancelled;
+
+                    // 5. ПЕРЕМЕЩЕНИЕ
+                    using (Transaction trans = new Transaction(doc, "IFC по координатам"))
                     {
-                        TaskDialog.Show("Ошибка", "Не удалось переместить IFC");
+                        trans.Start();
+
+                        bool success = MoveIFC(doc, link, x_mm, y_mm, z_mm);
+
+                        trans.Commit();
+
+                        if (success)
+                        {
+                            TaskDialog.Show("Успех",
+                                $"IFC перемещена на:\n" +
+                                $"X={x_mm} мм, Y={y_mm} мм, Z={z_mm} мм");
+                        }
+                        else
+                        {
+                            TaskDialog.Show("Ошибка", "Не удалось переместить IFC");
+                        }
                     }
                 }
-
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -96,119 +98,6 @@ namespace PlugINPRO.Commands.IFC
                 return Result.Failed;
             }
         }
-
-
-            //try
-            //{
-            //    // 1. ПОЛУЧАЕМ КООРДИНАТЫ ИЗ ПОЛЕЙ НА ЛЕНТЕ
-            //    double x_mm = 0, y_mm = 0, z_mm = 0;
-
-            //    if (!GetCoordinatesFromRibbon(out x_mm, out y_mm, out z_mm))
-            //    {
-            //        TaskDialog.Show("Ошибка",
-            //            "Неверный формат координат.\n" +
-            //            "Введите числа в поля X, Y, Z на панели ГЕНПЛАН.");
-            //        return Result.Cancelled;
-            //    }
-
-            //    // 2. ВЫБОР IFC
-            //    Reference selectedRef = null;
-            //    try
-            //    {
-            //        selectedRef = uiDoc.Selection.PickObject(
-            //            ObjectType.Element,
-            //            "Выберите IFC связь");
-            //    }
-            //    catch
-            //    {
-            //        return Result.Cancelled;
-            //    }
-
-            //    if (selectedRef == null) return Result.Cancelled;
-
-            //    // 3. ПРОВЕРКА
-            //    Element selectedElement = doc.GetElement(selectedRef);
-            //    RevitLinkInstance link = selectedElement as RevitLinkInstance;
-
-            //    if (link == null)
-            //    {
-            //        TaskDialog.Show("Ошибка", "Выбранный элемент не является IFC связью");
-            //        return Result.Cancelled;
-            //    }
-
-            //    // 4. ПОДТВЕРЖДЕНИЕ
-            //    TaskDialogResult confirm = TaskDialog.Show(
-            //        "Подтверждение",
-            //        $"Переместить '{link.Name}'?\n" +
-            //        $"Координаты: X={x_mm} мм, Y={y_mm} мм, Z={z_mm} мм",
-            //        TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
-
-            //    if (confirm != TaskDialogResult.Yes) return Result.Cancelled;
-
-            //    // 5. ПЕРЕМЕЩЕНИЕ
-            //    using (Transaction trans = new Transaction(doc, "IFC по координатам"))
-            //    {
-            //        trans.Start();
-
-            //        bool success = MoveIFC(doc, link, x_mm, y_mm, z_mm);
-
-            //        trans.Commit();
-
-            //        if (success)
-            //        {
-            //            TaskDialog.Show("Успех",
-            //                $"IFC перемещена на:\n" +
-            //                $"X={x_mm} мм, Y={y_mm} мм, Z={z_mm} мм");
-            //        }
-            //        else
-            //        {
-            //            TaskDialog.Show("Ошибка", "Не удалось переместить IFC");
-            //        }
-            //    }
-
-            //    return Result.Succeeded;
-            //}
-            //catch (Exception ex)
-            //{
-            //    TaskDialog.Show("Ошибка", ex.Message);
-            //    return Result.Failed;
-            //}
-            //}
-
-            //private bool GetCoordinatesFromRibbon(out double x, out double y, out double z)
-            //{
-            //    x = y = z = 0;
-
-            //    try
-            //    {
-            //        // Получаем значения из MainApplication
-            //        if (App.txtX != null && App.txtY != null && App.txtZ != null)
-            //        {
-            //            // Value возвращает object, нужно привести к string
-            //            string strX = App.txtX.Value as string;
-            //            string strY = App.txtY.Value as string;
-            //            string strZ = App.txtZ.Value as string;
-
-            //            // Если null, используем пустую строку
-            //            strX = strX ?? "";
-            //            strY = strY ?? "";
-            //            strZ = strZ ?? "";
-
-            //            if (double.TryParse(strX, out x) &&
-            //                double.TryParse(strY, out y) &&
-            //                double.TryParse(strZ, out z))
-            //            {
-            //                return true;
-            //            }
-            //        }
-
-            //        return false;
-            //    }
-            //    catch
-            //    {
-            //        return false;
-            //    }
-            //}
 
         private bool MoveIFC(Document doc, RevitLinkInstance link, double x_mm, double y_mm, double z_mm)
         {
@@ -244,7 +133,7 @@ namespace PlugINPRO.Commands.IFC
             }
         }
     }
-    
+
     [Transaction(TransactionMode.Manual)]
     public class ResetCoordinatesCommand : IExternalCommand
     {
@@ -257,67 +146,92 @@ namespace PlugINPRO.Commands.IFC
             Document doc = uiDoc.Document;
 
             // 2. ВЫБОР IFC
-            Reference selectedRef;
+            IList<Element> selectedLinks = null;
             try
             {
-                selectedRef = uiDoc.Selection.PickObject(
-                    ObjectType.Element,
-                    "Выберите IFC связь");
+                selectedLinks = SelectionHelper.LinksSelector(uiDoc);
             }
             catch
             {
                 return Result.Cancelled;
             }
 
-            if (selectedRef == null) return Result.Cancelled;
+            if (selectedLinks == null) return Result.Cancelled;
 
-            // 3. ПРОВЕРКА
-            Element selectedElement = doc.GetElement(selectedRef);
-            RevitLinkInstance link = selectedElement as RevitLinkInstance;
-            if (link == null)
+
+            foreach (Element element in selectedLinks)
             {
-                TaskDialog.Show("Ошибка", "Выбранный элемент не является IFC связью");
-                return Result.Cancelled;
-            }
-            
-            // 4. ПОДТВЕРЖДЕНИЕ
-            TaskDialogResult confirm = TaskDialog.Show(
-                "Подтверждение",
-                $"Переместить '{link.Name}'\n" +
-                $"в начало координат?",
-                TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
-
-            if (confirm != TaskDialogResult.Yes) return Result.Cancelled;
-
-            Transform linkTransform = link.GetTransform();
-            XYZ currentOrigin = linkTransform.Origin;
-            Location linkLocation = link.Location;
-
-            // Вектор перемещения в (0,0,0)
-            XYZ moveVector = new XYZ(
-                -currentOrigin.X,
-                -currentOrigin.Y,
-                -currentOrigin.Z
-            );
-
-            using (Transaction t = new Transaction(doc, "Сброс координат IFC связи"))
-            {
-                t.Start();
-                bool move = linkLocation.Move(moveVector);
-            
-                if (move)
+                // 3. ПРОВЕРКА
+                RevitLinkInstance link = element as RevitLinkInstance;
+                if (link == null)
                 {
-                    TaskDialog.Show("Успех",
-                        $"IFC успешно перемещена\n" +
-                        $"в начало координат");
+                    TaskDialog.Show("Ошибка", "Выбранный элемент не является IFC связью");
+                    return Result.Cancelled;
                 }
-                else
+
+                // 4. ПОДТВЕРЖДЕНИЕ
+                TaskDialogResult confirm = TaskDialog.Show(
+                    "Подтверждение",
+                    $"Переместить '{link.Name}'\n" +
+                    $"в начало координат?",
+                    TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No);
+
+                if (confirm != TaskDialogResult.Yes) return Result.Cancelled;
+
+                Transform linkTransform = link.GetTransform();
+                XYZ currentOrigin = linkTransform.Origin;
+                Location linkLocation = link.Location;
+
+                // Вектор перемещения в (0,0,0)
+                XYZ moveVector = new XYZ(
+                    -currentOrigin.X,
+                    -currentOrigin.Y,
+                    -currentOrigin.Z
+                );
+
+                using (Transaction t = new Transaction(doc, "Сброс координат IFC связи"))
                 {
-                    TaskDialog.Show("Ошибка", "Не удалось переместить IFC");
+                    t.Start();
+                    bool move = linkLocation.Move(moveVector);
+
+                    if (move)
+                    {
+                        TaskDialog.Show("Успех",
+                            $"IFC успешно перемещена\n" +
+                            $"в начало координат");
+                    }
+                    else
+                    {
+                        TaskDialog.Show("Ошибка", "Не удалось переместить IFC");
+                    }
+                    t.Commit();
                 }
-                t.Commit();
             }
             return Result.Succeeded;
+        }
+    }
+    public class IFCLinksSelection : ISelectionFilter
+    {
+        public bool AllowElement(Element element)
+        {
+            return element is RevitLinkInstance;
+        }
+        public bool AllowReference(Reference reference, XYZ point)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Вспомогательный класс выбора
+    /// </summary>
+    public static class SelectionHelper
+    {
+        public static IList<Element> LinksSelector(UIDocument uiDoc)
+        {
+            return uiDoc.Selection.PickElementsByRectangle(
+                new IFCLinksSelection(),
+                "Выберите IFC связи");
         }
     }
 }

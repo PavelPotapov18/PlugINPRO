@@ -160,71 +160,72 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\ifc32.png" />
+    <EmbeddedResource Include="Resources\IFC\ifc32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\ifc64.png" />
+    <EmbeddedResource Include="Resources\IFC\ifc64.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\R00_64.png" />
+    <EmbeddedResource Include="Resources\Common\R00_64.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\ifc48.png" />
-    <EmbeddedResource Include="Resources\R00_48.png" />
+    <EmbeddedResource Include="Resources\IFC\ifc48.png" />
+    <EmbeddedResource Include="Resources\Common\R00_48.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\R00_32.png" />
+    <EmbeddedResource Include="Resources\Common\R00_32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\ifc16.png" />
-    <EmbeddedResource Include="Resources\R00_16.png" />
+    <EmbeddedResource Include="Resources\IFC\ifc16.png" />
+    <EmbeddedResource Include="Resources\Common\R00_16.png" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Resources\INPRO.png" />
+    <Resource Include="Resources\PluginInfo\INPRO.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\info32.png" />
+    <EmbeddedResource Include="Resources\PluginInfo\info32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\grids32.png" />
+    <EmbeddedResource Include="Resources\Common\grids32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\grids16.png" />
+    <EmbeddedResource Include="Resources\Common\grids16.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\CableTrayFitting16.png" />
-    <EmbeddedResource Include="Resources\CableTrayFitting32.png" />
-    <EmbeddedResource Include="Resources\DuctFitting16.png" />
-    <EmbeddedResource Include="Resources\DuctFitting32.png" />
-    <EmbeddedResource Include="Resources\PipeFitting16.png" />
-    <EmbeddedResource Include="Resources\PipeFitting32.png" />
+    <EmbeddedResource Include="Resources\ES\CableTrayFitting16.png" />
+    <EmbeddedResource Include="Resources\ES\CableTrayFitting32.png" />
+    <EmbeddedResource Include="Resources\OV\DuctFitting16.png" />
+    <EmbeddedResource Include="Resources\OV\DuctFitting32.png" />
+    <EmbeddedResource Include="Resources\VK\PipeFitting16.png" />
+    <EmbeddedResource Include="Resources\VK\PipeFitting32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Worksets16.png" />
-    <EmbeddedResource Include="Resources\Worksets32.png" />
+    <EmbeddedResource Include="Resources\Common\Worksets16.png" />
+    <EmbeddedResource Include="Resources\Common\Worksets32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\export16.png" />
-    <EmbeddedResource Include="Resources\export32.png" />
+    <EmbeddedResource Include="Resources\Common\export16.png" />
+    <EmbeddedResource Include="Resources\Common\export32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\dooredit16.png" />
-    <EmbeddedResource Include="Resources\dooredit32.png" />
+    <EmbeddedResource Include="Resources\AR\dooredit16.png" />
+    <EmbeddedResource Include="Resources\AR\dooredit32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\dimensions16.png" />
-    <EmbeddedResource Include="Resources\dimensions32.png" />
+    <EmbeddedResource Include="Resources\TS\dimensions16.png" />
+    <EmbeddedResource Include="Resources\TS\dimensions32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\info16.png" />
+    <EmbeddedResource Include="Resources\PluginInfo\info16.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\settings16.png" />
-    <EmbeddedResource Include="Resources\settings32.png" />
+    <EmbeddedResource Include="Resources\TS\settings16.png" />
+    <EmbeddedResource Include="Resources\TS\settings32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\cube16.png" />
-    <EmbeddedResource Include="Resources\cube32.png" />
+    <EmbeddedResource Include="Resources\Common\cube16.png" />
+    <EmbeddedResource Include="Resources\Common\cube32.png" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

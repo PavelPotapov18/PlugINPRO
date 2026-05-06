@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:PlugINPRO"
         mc:Ignorable="d"
         Title="Настройки креплений трубопроводов" 
-        Height="600" 
+        Height="700" 
         Width="400"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize">
@@ -66,6 +66,7 @@
         <GroupBox Grid.Row="1" Header="Шаг установки опор:">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>

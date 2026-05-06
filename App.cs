@@ -54,8 +54,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.PluginInfo.InfoCommand"
                 )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.info32.png"),
-                Image = LoadImage("PlugINPRO.Resources.info16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.PluginInfo.info32.png"),
+                Image = LoadImage("PlugINPRO.Resources.PluginInfo.info16.png"),
                 ToolTip = "PlugINPRO v1.0",
                 LongDescription = "О плагине"
             };
@@ -74,8 +74,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.Common.RevIZMCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.R00_32.png"),
-                Image = LoadImage("PlugINPRO.Resources.R00_16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.Common.R00_32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Common.R00_16.png"),
                 ToolTip = "Проставление ревизий и ИЗМов в штампе"
             };
 
@@ -90,8 +90,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.Common.GridsOffCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.grids32.png"),
-                Image = LoadImage("PlugINPRO.Resources.grids16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.Common.grids32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Common.grids16.png"),
                 ToolTip = "Отключение осей и уровней в связанных файлах"
             };
 
@@ -105,8 +105,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.Common.WorksetsCheckCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.Worksets32.png"),
-                Image = LoadImage("PlugINPRO.Resources.Worksets16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.Common.Worksets32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Common.Worksets16.png"),
                 ToolTip = "Проверка рабочих наборов на корректность заполнения по элементам",
                 LongDescription = "Работает для наборов \"Общие уровни и сетки\" и наборов для связанных файлов (\"#Связь_АР\", \"#Связь_КР\" и др.)"
             };
@@ -120,8 +120,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.Common.ThreeDByWorksetsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.cube32.png"),
-                Image = LoadImage("PlugINPRO.Resources.cube16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.Common.cube32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Common.cube16.png"),
                 ToolTip = "Создание 3D видов по рабочим наборам",
                 LongDescription = "Создает отдельные 3D виды, содержащие элементы только одного конкретного рабочего набора"
             };
@@ -135,8 +135,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.Common.PdfDwgExportCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.export32.png"),
-                Image = LoadImage("PlugINPRO.Resources.export16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.Common.export32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Common.export16.png"),
                 ToolTip = "Экспорт листов и комплектов в PDF и DWG формат",
                 LongDescription = "Экспорт листов проекта в PDF и DWG по комплектам и создание сводного PDF файла для выбранного комплекта"
             };
@@ -153,8 +153,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.IFC.IFCByCoordinatesCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
-                Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.IFC.ifc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.IFC.ifc16.png"),
                 ToolTip = "Переместить выбранный IFC на введенные координаты"
             };
 
@@ -166,8 +166,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.IFC.ResetCoordinatesCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
-                Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.IFC.ifc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.IFC.ifc16.png"),
                 ToolTip = "Установить все координаты в 0"
             };
             // Кнопка "Покраска IFC элементов"
@@ -178,15 +178,15 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.IFC.IFCPaintCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
-                Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.IFC.ifc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.IFC.ifc16.png"),
                 ToolTip = "Покраска требуемых элементов из IFC связей"
             };
 
             //Кнопка - контейнер "IFC"(открывает список команд по работе с IFC)
             PulldownButtonData IfcPullData = new PulldownButtonData("IFCTools", "IFC")
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.IFC.ifc32.png"),
                 ToolTip = "Работа по переносу фалов IFC"
             };
 
@@ -208,8 +208,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.BIM.IFCtoRVTCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.ifc32.png"),
-                Image = LoadImage("PlugINPRO.Resources.ifc16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.IFC.ifc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.IFC.ifc16.png"),
                 ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств"
             };
 
@@ -226,8 +226,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.AR.DoorEditorCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.dooredit32.png"),
-                Image = LoadImage("PlugINPRO.Resources.dooredit16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.dooredit32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.dooredit16.png"),
                 ToolTip = "Редактирование параметров выбранной двери с предпросмотром",
                 LongDescription = "Позволяет редактировать параметры двери в реальном времени с визуальным отображением изменений"
             };
@@ -247,8 +247,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.OV.DuctSupportsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.DuctFitting32.png"),
-                Image = LoadImage("PlugINPRO.Resources.DuctFitting16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.OV.DuctFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.OV.DuctFitting16.png"),
                 ToolTip = "Расстановка опор по траектории воздуховода\nВключает выбор крепления и шага"
             };
             ovPanel.AddItem(ductSupportsButtonData);
@@ -266,8 +266,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.ES.CableTraySupportsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.CableTrayFitting32.png"),
-                Image = LoadImage("PlugINPRO.Resources.CableTrayFitting16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting16.png"),
                 ToolTip = "Расстановка опор по траектории кабельного лотка\nВключает выбор крепления и шага"
             };
 
@@ -286,8 +286,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.VK.PipeSupportsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.PipeFitting32.png"),
-                Image = LoadImage("PlugINPRO.Resources.PipeFitting16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.PipeFitting16.png"),
                 ToolTip = "Расстановка опор по траектории трубопровода\nВключает выбор крепления и шага"
             };
 
@@ -306,8 +306,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.TS.AxonometricDimensionCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.dimensions32.png"),
-                Image = LoadImage("PlugINPRO.Resources.dimensions16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.TS.dimensions32.png"),
+                Image = LoadImage("PlugINPRO.Resources.TS.dimensions16.png"),
                 ToolTip = "Расстановка размеров на аксонометрических видах",
                 LongDescription = "Проставляет размеры на выбранных трубах. Режим работы настраивается в окне настроек"
             };
@@ -322,8 +322,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.TS.DimensionSettingsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.settings32.png"),
-                Image = LoadImage("PlugINPRO.Resources.settings16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.TS.settings32.png"),
+                Image = LoadImage("PlugINPRO.Resources.TS.settings16.png"),
                 ToolTip = "Настройка параметров простановки размеров",
                 LongDescription = "Выбор режима простановки размеров и типа размера"
             };

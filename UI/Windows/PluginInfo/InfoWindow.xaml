@@ -15,7 +15,7 @@
 
         <!-- ЛОГОТИП -->
         <Image
-               Source="/PlugINPRO;component/Resources/INPRO.png"
+               Source="/PlugINPRO;component/Resources/PluginInfo/INPRO.png"
                Margin="0,10,0,303" HorizontalAlignment="Center" Width="398" Grid.Column="1"/>
 
         <!-- ТЕКСТ -->
