@@ -329,6 +329,24 @@ namespace PlugINPRO
             };
 
             tsPanel.AddItem(settingsButtonData);
+
+            // ============================================
+            // НОВАЯ КНОПКА "Переечение осей"
+            // ============================================
+            PushButtonData dimensionToGridsButtonData = new PushButtonData(
+                "DimensionToGrids",
+                "Пересечение\nосей",
+                assemblyPath,
+                "PlugINPRO.Commands.TS.DimensionToGridsCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.dimensiontogrids32.png"),
+                Image = LoadImage("PlugINPRO.Resources.dimensiontogrids16.png"),
+                ToolTip = "Размер от трубы/фитинга до пересечения осей",
+                LongDescription = "Создает размер от выбранной точки трубы или центра фитинга до точки пересечения двух выбранных осей"
+            };
+
+            tsPanel.AddItem(dimensionToGridsButtonData);
             // ============================================
 
             return Result.Succeeded;
