@@ -22,6 +22,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -30,6 +31,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />
@@ -55,8 +57,31 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
+    <Compile Include="Commands\AR\CreateRoomFinishFloorsCommand.cs" />
+    <Compile Include="Commands\AR\CreateRoomFinishWallsCommand.cs" />
+    <Compile Include="Commands\AR\DoorsWindowsPrepCommand.cs" />
+    <Compile Include="Commands\AR\ExportToCsvCommand.cs" />
+    <Compile Include="Commands\AR\MaterialsCountCommand.cs" />
+    <Compile Include="Commands\AR\MaterialsParamsCommand.cs" />
+    <Compile Include="Commands\AR\OrientationCommand.cs" />
     <Compile Include="Commands\TS\AxonometricDimensionCommand.cs" />
     <Compile Include="Commands\TS\DimensionToGridsCommand.cs" />
+    <Compile Include="Services\AR\CsvExporter.cs" />
+    <Compile Include="Services\AR\FinishLayer.cs" />
+    <Compile Include="Services\AR\FinishSegmentInfo.cs" />
+    <Compile Include="Services\AR\FinishWallBuilder.cs" />
+    <Compile Include="Services\AR\FinishWallsViewModel.cs" />
+    <Compile Include="Services\AR\FloorSettingsViewModel.cs" />
+    <Compile Include="Services\AR\RoomBoundaryService.cs" />
+    <Compile Include="Services\AR\RoomFloorBuilder.cs" />
+    <Compile Include="Services\AR\WallFinishRule.cs" />
+    <Compile Include="UI\Converters\EnumToBooleanConverter.cs" />
+    <Compile Include="UI\Windows\AR\FinishSettingsWindow.xaml.cs">
+      <DependentUpon>FinishSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\AR\FloorSettingsWindow.xaml.cs">
+      <DependentUpon>FloorSettingsWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\Windows\ES\CableTrayFittingSettingsWindow.xaml.cs">
       <DependentUpon>CableTrayFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
@@ -111,6 +136,14 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Include="UI\Windows\AR\FinishSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\AR\FloorSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="UI\Windows\ES\CableTrayFittingSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -227,6 +260,21 @@
     <EmbeddedResource Include="Resources\Common\cube16.png" />
     <EmbeddedResource Include="Resources\Common\cube32.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\AR\vom16.png" />
+    <EmbeddedResource Include="Resources\AR\vom32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\AR\compass16.png" />
+    <EmbeddedResource Include="Resources\AR\compass32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\AR\Finish16.png" />
+    <EmbeddedResource Include="Resources\AR\Finish32.png" />
+    <EmbeddedResource Include="Resources\AR\FloorFinish16.png" />
+    <EmbeddedResource Include="Resources\AR\FloorFinish32.png" />
+    <EmbeddedResource Include="Resources\AR\WallFinish16.png" />
+    <EmbeddedResource Include="Resources\AR\WallFinish32.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

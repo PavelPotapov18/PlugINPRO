@@ -63,7 +63,10 @@ namespace PlugINPRO
             infoPanel.AddItem(logoButtonData);
 
 
-            // Создаём панель "Общие инструменты" на вкладке
+            // ============================================
+            // ПАНЕЛЬ "ОБЩИЕ ИНСТРУМЕНТЫ"
+            // ============================================
+
             RibbonPanel commonPanel = application.CreateRibbonPanel("INPRO", "Общие инструменты");
 
             // Кнопка "Проставление ревизий"
@@ -142,9 +145,14 @@ namespace PlugINPRO
             };
             commonPanel.AddItem(exportButtonData);
 
-            //Создаем панель IFC
+            // ============================================
+            // ПАНЕЛЬ "IFC"
+            // ============================================
             RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "IFC");
 
+            // ============================================
+            // КОНТЕЙНЕР "IFC"
+            // ============================================
             // Кнопка "IFC по координатам"
             PushButtonData ifcButtonData = new PushButtonData(
                 "IFCByCoordinates",
@@ -196,7 +204,9 @@ namespace PlugINPRO
             IfcPullButton.AddPushButton(resetButtonData);
             IfcPullButton.AddPushButton(paintButtonData);
 
-
+            // ============================================
+            // ПАНЕЛЬ BIM
+            // ============================================
             //Создаем панель BIM
             RibbonPanel bimPanel = application.CreateRibbonPanel("INPRO", "BIM");
 
@@ -215,7 +225,11 @@ namespace PlugINPRO
 
             bimPanel.AddItem(IfcRvtButtonData);
 
-            // Добавим после существующих панелей или в соответствующем месте
+
+            // ============================================
+            // ПАНЕЛЬ АР (Архитектура)
+            // ============================================
+
             RibbonPanel arPanel = application.CreateRibbonPanel("INPRO", "АР");
 
             // Кнопка "Редактор дверей"
@@ -233,6 +247,157 @@ namespace PlugINPRO
             };
 
             arPanel.AddItem(doorEditorButtonData);
+
+            // ============================================
+            // КОНТЕЙНЕР "ВОМ"
+            // ============================================
+
+            // Кнопка "Подсчет ВОМ"
+            PushButtonData vomСountButtonData = new PushButtonData(
+                "VOMCount",
+                "Подсчет ВОМ",
+                assemblyPath,
+                "PlugINPRO.Commands.AR.MaterialsCountCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.vom16.png"),
+                ToolTip = "Заполнение данных для ведомости объемов материалов",
+                LongDescription = "Заполняет параметр \"ADSK_Количество\" у элементов (стен, полов и пр.) в зависимости от указанных для элементов единиц измерения"
+            };
+            
+            // Кнопка "Параметры ВОМ"
+            PushButtonData vomParamsButtonData = new PushButtonData(
+                "VOMParams",
+                "Параметры ВОМ",
+                assemblyPath,
+                "PlugINPRO.Commands.AR.MaterialsParamsCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.vom16.png"),
+                ToolTip = "Заполнение данных для ведомости объемов материалов",
+                LongDescription = "Заполняет параметры \"INP_ВОМ_Категория\" и \"INP_ВОМ_Единица измерения\" для типоразмеров элементов (стен, полов и пр.)"
+            };
+
+            //Кнопка - контейнер "ВОМ"(открывает список команд по созданию ведомости объемов материалов)
+            PulldownButtonData VomPullData = new PulldownButtonData("VOMTools", "ВОМ")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
+                ToolTip = "Команды по созданию ведомости объемов материалов"
+            };
+
+            PulldownButton VomPullButton = arPanel.AddItem(VomPullData) as PulldownButton;
+
+            VomPullButton.AddPushButton(vomParamsButtonData);
+            VomPullButton.AddPushButton(vomСountButtonData);
+
+
+            // ============================================
+            // КОНТЕЙНЕР "ЭЭ"
+            // ============================================
+
+            // Кнопка "Ориентация по сторонам света"
+            PushButtonData orientationButtonData = new PushButtonData(
+                "Orientation",
+                "Ориентация по сторонам света",
+                assemblyPath,
+                "PlugINPRO.Commands.AR.OrientationCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.compass32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.compass16.png"),
+                ToolTip = "Заполняет параметр \"INP_Ориентация по сторонам света\" ",
+                LongDescription = "Заполняет параметр \"INP_Ориентация по сторонам света\" у элементов (стен, дверей и пр.) с учетом ориентации элементов относительно истинного севера"
+            };
+
+            // Кнопка "Двери и окна по помещениям"
+            PushButtonData DoorWinButtonData = new PushButtonData(
+                "DoorsWindows",
+                "Проверка дверей и окон",
+                assemblyPath,
+                "PlugINPRO.Commands.AR.DoorsWindowsPrepCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.dooredit32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.dooredit16.png"),
+                ToolTip = "Проверка готовности дверей и окон к расчету энергоэффективности",
+                LongDescription = "Проверка корректности заполнения требуемых параметров у дверей и окон"
+            };
+
+            PushButtonData ExportToCsvButtonData = new PushButtonData(
+                "ExportToCsv",
+                "Экспорт в CSV",
+                assemblyPath,
+                "PlugINPRO.Commands.AR.ExportToCsvCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.vom16.png"),
+                ToolTip = "Экспорт данных в CSV",
+                LongDescription = "Экспорт данных по помещениям и эоементам (стены, двери, окна) в табличном формате CSV"
+            };
+
+            //Кнопка - контейнер "ЭЭ"(открывает список команд по заполнению параметров для расчета энергоэффективности)
+            PulldownButtonData energyPullData = new PulldownButtonData("EnergyTools", "ЭЭ")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
+                ToolTip = "Команды по подготовке к расчету энергоэффективности"
+            };
+
+            PulldownButton energyPullButton = arPanel.AddItem(energyPullData) as PulldownButton;
+
+            energyPullButton.AddPushButton(orientationButtonData);
+            energyPullButton.AddPushButton(DoorWinButtonData);
+            energyPullButton.AddPushButton(ExportToCsvButtonData);
+
+
+            // ============================================
+            // КОНТЕЙНЕР "ОТДЕЛКА"
+            // ============================================
+
+            // Кнопка "Отделка стен по помещениям"
+            PushButtonData roomWallFaceButtonData = new PushButtonData(
+                "RoomWallFinish",
+                "Отделка стен по помещениям",
+                assemblyPath,
+                "PlugINPRO.Commands.AR.CreateRoomFinishWallsCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.WallFinish32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.WallFinish16.png"),
+                ToolTip = "Отделка стен по помещениям",
+                LongDescription = "Создание отделки стен по каждому помещению в зависимости от стены-основы"
+            };
+
+            // Кнопка "Отделка пола по помещениям"
+            PushButtonData roomFloorButtonData = new PushButtonData(
+                "RoomFloorFinish",
+                "Отделка пола по помещениям",
+                assemblyPath,
+                "PlugINPRO.Commands.AR.CreateRoomFinishFloorsCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.FloorFinish32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.FloorFinish16.png"),
+                ToolTip = "Отделка стен по помещениям",
+                LongDescription = "Создание отделки пола по выбранному помещению"
+            };
+
+            //Кнопка - контейнер "Отделка"(открывает список команд по заполнению параметров для создания отделки помещений)
+            PulldownButtonData finishingPullData = new PulldownButtonData("FinishTools", "Отделка")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.Finish32.png"),
+                ToolTip = "Команды по созданию отделки помещений"
+            };
+
+            PulldownButton finishingPullButton = arPanel.AddItem(finishingPullData) as PulldownButton;
+
+            finishingPullButton.AddPushButton(roomWallFaceButtonData);
+            finishingPullButton.AddPushButton(roomFloorButtonData);
+
+
+
 
             // ============================================
             // ПАНЕЛЬ ОВ (Отопление и Вентиляция)
@@ -331,7 +496,7 @@ namespace PlugINPRO
             tsPanel.AddItem(settingsButtonData);
 
             // ============================================
-            // НОВАЯ КНОПКА "Переечение осей"
+            // НОВАЯ КНОПКА "Пересечение осей"
             // ============================================
             PushButtonData dimensionToGridsButtonData = new PushButtonData(
                 "DimensionToGrids",

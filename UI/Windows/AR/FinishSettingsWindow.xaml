@@ -1,0 +1,186 @@
+﻿<Window x:Class="PlugINPRO.UI.Windows.AR.FinishSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:PlugINPRO.UI.Windows.AR"
+        Title="Настройка отделки"
+        Height="600" Width="900">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Режим -->
+        <GroupBox Header="Режим обработки" Grid.Row="0" Margin="0,0,0,10">
+            <StackPanel Margin="5">
+                <RadioButton Content="Все помещения проекта"
+                             IsChecked="{Binding IsAllRooms}"/>
+                <RadioButton Content="Выбранные помещения"
+                             IsChecked="{Binding IsSelectedRooms}"/>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Правила -->
+        <DataGrid Grid.Row="1"
+                  x:Name="RulesGrid"
+                  ItemsSource="{Binding Rules}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  SelectionMode="Single"
+                  RowDetailsVisibilityMode="VisibleWhenSelected">
+
+            <DataGrid.Columns>
+
+                <!-- Стена-основа -->
+                <DataGridTemplateColumn Header="Тип стены основы" Width="250">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding SourceWallType.Name}"
+                                       VerticalAlignment="Center" Margin="4,0"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <ComboBox
+                                ItemsSource="{Binding DataContext.WallTypes,
+                                    RelativeSource={RelativeSource AncestorType=Window}}"
+                                SelectedItem="{Binding SourceWallType, Mode=TwoWay}"
+                                DisplayMemberPath="Name"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- Количество слоёв (информационно) -->
+                <DataGridTemplateColumn Header="Слоёв" Width="60">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Layers.Count}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+            </DataGrid.Columns>
+
+            <!-- Вложенная таблица слоёв -->
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                    <Border Margin="30,4,4,4"
+                            BorderBrush="#CCCCCC"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                        <StackPanel>
+
+                            <DataGrid
+                                x:Name="LayersGrid"
+                                ItemsSource="{Binding Layers}"
+                                AutoGenerateColumns="False"
+                                CanUserAddRows="False"
+                                Margin="4"
+                                Tag="{Binding DataContext,
+                                    RelativeSource={RelativeSource AncestorType=Window}}">
+
+                                <DataGrid.Columns>
+
+                                    <!-- Тип отделки -->
+                                    <DataGridTemplateColumn Header="Тип отделки" Width="220">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding FinishWallType.Name}"
+                                                           VerticalAlignment="Center" Margin="4,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <ComboBox
+                                                    ItemsSource="{Binding DataContext.WallTypes,
+                                                        RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    SelectedItem="{Binding FinishWallType, Mode=TwoWay}"
+                                                    DisplayMemberPath="Name"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Отступ от низа (мм) -->
+                                    <DataGridTemplateColumn Header="Отступ от низа (мм)" Width="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding BaseOffsetMm}"
+                                                           VerticalAlignment="Center" Margin="4,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding BaseOffsetMm,
+                                                             Mode=TwoWay,
+                                                             UpdateSourceTrigger=LostFocus}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Высота (мм) -->
+                                    <DataGridTemplateColumn Header="Высота (мм)" Width="120">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding HeightMm}"
+                                                           VerticalAlignment="Center" Margin="4,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding HeightMm,
+                                                             Mode=TwoWay,
+                                                             UpdateSourceTrigger=LostFocus}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                    </DataGridTemplateColumn>
+
+                                </DataGrid.Columns>
+
+                            </DataGrid>
+
+                            <!-- Кнопки управления слоями -->
+                            <StackPanel Orientation="Horizontal"
+                                        Margin="4,0,4,4">
+                                <Button Content="+ Слой"
+                                        Width="80"
+                                        Margin="0,0,6,0"
+                                        Tag="{Binding}"
+                                        Click="AddLayer_Click"/>
+                                <Button Content="- Слой"
+                                        Width="80"
+                                        Tag="{Binding}"
+                                        Click="DeleteLayer_Click"/>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
+
+        </DataGrid>
+
+        <!-- Кнопки правил -->
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,10,0,0">
+            <Button Content="Добавить правило"
+                    Width="130" Margin="0,0,10,0"
+                    Click="AddRule_Click"/>
+            <Button Content="Удалить правило"
+                    Width="130" Margin="0,0,10,0"
+                    Click="DeleteRule_Click"/>
+            <Button Content="ОК"
+                    Width="80" Margin="0,0,10,0"
+                    Click="Ok_Click"/>
+            <Button Content="Отмена"
+                    Width="80"
+                    Click="Cancel_Click"/>
+        </StackPanel>
+
+    </Grid>
+</Window>
