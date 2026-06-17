@@ -67,6 +67,7 @@
     <Compile Include="Commands\TS\AxonometricDimensionCommand.cs" />
     <Compile Include="Commands\TS\DimensionToGridsCommand.cs" />
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     <Compile Include="Services\AR\CsvExporter.cs" />
     <Compile Include="Services\AR\FinishLayer.cs" />
     <Compile Include="Services\AR\FinishSegmentInfo.cs" />
@@ -83,6 +84,10 @@
     <Compile Include="UI\Windows\AR\FloorSettingsWindow.xaml.cs">
       <DependentUpon>FloorSettingsWindow.xaml</DependentUpon>
     </Compile>
+=======
+    <Compile Include="Commands\VK\HydraulicCalculateCommand.cs" />
+    <Compile Include="Commands\VK\HydraulicCalcViewModel.cs" />
+>>>>>>> Stashed changes
 =======
     <Compile Include="Commands\VK\HydraulicCalculateCommand.cs" />
     <Compile Include="Commands\VK\HydraulicCalcViewModel.cs" />
