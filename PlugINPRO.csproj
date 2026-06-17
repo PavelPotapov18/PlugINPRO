@@ -66,13 +66,6 @@
     <Compile Include="Commands\AR\MaterialsCountCommand.cs" />
     <Compile Include="Commands\AR\MaterialsParamsCommand.cs" />
     <Compile Include="Commands\AR\OrientationCommand.cs" />
-    <Compile Include="Commands\AR\CreateRoomFinishFloorsCommand.cs" />
-    <Compile Include="Commands\AR\CreateRoomFinishWallsCommand.cs" />
-    <Compile Include="Commands\AR\DoorsWindowsPrepCommand.cs" />
-    <Compile Include="Commands\AR\ExportToCsvCommand.cs" />
-    <Compile Include="Commands\AR\MaterialsCountCommand.cs" />
-    <Compile Include="Commands\AR\MaterialsParamsCommand.cs" />
-    <Compile Include="Commands\AR\OrientationCommand.cs" />
     <Compile Include="Commands\TS\AxonometricDimensionCommand.cs" />
     <Compile Include="Commands\TS\DimensionToGridsCommand.cs" />
     <Compile Include="Commands\VK\HydraulicCalculateCommand.cs" />
@@ -308,31 +301,17 @@
     <EmbeddedResource Include="Resources\AR\vom32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\AR\compass16.png" />
-    <EmbeddedResource Include="Resources\AR\compass32.png" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Resources\AR\Finish16.png" />
     <EmbeddedResource Include="Resources\AR\Finish32.png" />
     <EmbeddedResource Include="Resources\AR\FloorFinish16.png" />
     <EmbeddedResource Include="Resources\AR\FloorFinish32.png" />
     <EmbeddedResource Include="Resources\AR\WallFinish16.png" />
-    <EmbeddedResource Include="Resources\AR\WallFinish32.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\AR\vom16.png" />
-    <EmbeddedResource Include="Resources\AR\vom32.png" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\AR\compass16.png" />
     <EmbeddedResource Include="Resources\AR\compass32.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\AR\Finish16.png" />
-    <EmbeddedResource Include="Resources\AR\Finish32.png" />
-    <EmbeddedResource Include="Resources\AR\FloorFinish16.png" />
-    <EmbeddedResource Include="Resources\AR\FloorFinish32.png" />
-    <EmbeddedResource Include="Resources\AR\WallFinish16.png" />
     <EmbeddedResource Include="Resources\AR\WallFinish32.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
