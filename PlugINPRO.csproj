@@ -75,6 +75,8 @@
     <Compile Include="Commands\AR\OrientationCommand.cs" />
     <Compile Include="Commands\TS\AxonometricDimensionCommand.cs" />
     <Compile Include="Commands\TS\DimensionToGridsCommand.cs" />
+    <Compile Include="Commands\VK\HydraulicCalculateCommand.cs" />
+    <Compile Include="Commands\VK\HydraulicCalcViewModel.cs" />
     <Compile Include="Services\AR\CsvExporter.cs" />
     <Compile Include="Services\AR\FinishLayer.cs" />
     <Compile Include="Services\AR\FinishSegmentInfo.cs" />
