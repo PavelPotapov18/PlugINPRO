@@ -294,6 +294,54 @@ namespace PlugINPRO
             vkPanel.AddItem(pipeSupportsButtonData);
 
             // ============================================
+            // НОВАЯ КНОПКА-КОНТЕЙНЕР "Гидравлический расчёт" на панели ВК
+            // ============================================
+
+            // Кнопка "Рассчитать систему" (первая подкоманда)
+            PushButtonData hydraulicCalculateButtonData = new PushButtonData(
+                "HydraulicCalculate",
+                "Рассчитать\nсистему",
+                assemblyPath,
+                "PlugINPRO.Commands.VK.HydraulicCalculateCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),  // Потребуется добавить иконку
+                Image = LoadImage("PlugINPRO.Resources.VK.Hydraulic16.png"),        // Потребуется добавить иконку
+                ToolTip = "Гидравлический расчёт выбранной системы",
+                LongDescription = "Выполняет гидравлический расчёт трубопроводной системы"
+            };
+
+            // Кнопка "Добавить параметры" (вторая подкоманда)
+            PushButtonData hydraulicAddParamsButtonData = new PushButtonData(
+                "HydraulicAddParams",
+                "Добавить\nпараметры",
+                assemblyPath,
+                "PlugINPRO.Commands.VK.HydraulicAddParamsCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.HydraulicParams32.png"), // Потребуется добавить иконку
+                Image = LoadImage("PlugINPRO.Resources.VK.HydraulicParams16.png"),       // Потребуется добавить иконку
+                ToolTip = "Добавить параметры для гидравлического расчёта",
+                LongDescription = "Добавляет в проект общие параметры, необходимые для выполнения гидравлического расчёта"
+            };
+
+            // Создаём кнопку-контейнер (PulldownButton)
+            PulldownButtonData hydraulicPullData = new PulldownButtonData("HydraulicTools", "Гидравлический\nрасчёт")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),  // Основная иконка кнопки-контейнера
+                ToolTip = "Инструменты гидравлического расчёта",
+                LongDescription = "Выполнение гидравлического расчёта и добавление необходимых параметров"
+            };
+
+            PulldownButton hydraulicPullButton = vkPanel.AddItem(hydraulicPullData) as PulldownButton;
+
+            // Добавляем подкоманды в выпадающий список
+            hydraulicPullButton.AddPushButton(hydraulicCalculateButtonData);
+            hydraulicPullButton.AddPushButton(hydraulicAddParamsButtonData);
+
+            // ============================================
+
+            // ============================================
             // НОВАЯ ПАНЕЛЬ ТС (Тепловые сети)
             // ============================================
             RibbonPanel tsPanel = application.CreateRibbonPanel("INPRO", "ТС");

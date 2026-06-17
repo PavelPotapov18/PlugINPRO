@@ -57,6 +57,27 @@
     <Compile Include="App.cs" />
     <Compile Include="Commands\TS\AxonometricDimensionCommand.cs" />
     <Compile Include="Commands\TS\DimensionToGridsCommand.cs" />
+<<<<<<< Updated upstream
+    <Compile Include="Services\AR\CsvExporter.cs" />
+    <Compile Include="Services\AR\FinishLayer.cs" />
+    <Compile Include="Services\AR\FinishSegmentInfo.cs" />
+    <Compile Include="Services\AR\FinishWallBuilder.cs" />
+    <Compile Include="Services\AR\FinishWallsViewModel.cs" />
+    <Compile Include="Services\AR\FloorSettingsViewModel.cs" />
+    <Compile Include="Services\AR\RoomBoundaryService.cs" />
+    <Compile Include="Services\AR\RoomFloorBuilder.cs" />
+    <Compile Include="Services\AR\WallFinishRule.cs" />
+    <Compile Include="UI\Converters\EnumToBooleanConverter.cs" />
+    <Compile Include="UI\Windows\AR\FinishSettingsWindow.xaml.cs">
+      <DependentUpon>FinishSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\AR\FloorSettingsWindow.xaml.cs">
+      <DependentUpon>FloorSettingsWindow.xaml</DependentUpon>
+    </Compile>
+=======
+    <Compile Include="Commands\VK\HydraulicCalculateCommand.cs" />
+    <Compile Include="Commands\VK\HydraulicCalcViewModel.cs" />
+>>>>>>> Stashed changes
     <Compile Include="UI\Windows\ES\CableTrayFittingSettingsWindow.xaml.cs">
       <DependentUpon>CableTrayFittingSettingsWindow.xaml</DependentUpon>
     </Compile>
@@ -88,6 +109,10 @@
     <Compile Include="Commands\BIM\IFCtoRVTCommand.cs" />
     <Compile Include="UI\Windows\Common\PdfDwgExportWindow.xaml.cs">
       <DependentUpon>PdfDwgExportWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Commands\VK\HydraulicAddParamsCommand.cs" />
+    <Compile Include="UI\Windows\VK\HydraulicCalcWindow.xaml.cs">
+      <DependentUpon>HydraulicCalcWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\Windows\VK\PipeFittingSettingsWindow.xaml.cs">
       <DependentUpon>PipeFittingSettingsWindow.xaml</DependentUpon>
@@ -144,6 +169,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\Windows\Common\PdfDwgExportWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\VK\HydraulicCalcWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
