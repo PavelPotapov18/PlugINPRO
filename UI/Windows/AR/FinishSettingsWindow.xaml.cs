@@ -1,15 +1,21 @@
 ﻿using Autodesk.Revit.DB;
 using PlugINPRO.Services.AR;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace PlugINPRO.UI.Windows.AR
 {
+    /// <summary>
+    /// Interaction logic for FinishSettingsWindow.xaml
+    /// </summary>
     public partial class FinishSettingsWindow : Window
     {
         public FinishWallsViewModel ViewModel { get; }
-
         public FinishSettingsWindow(List<WallType> wallTypes)
         {
             InitializeComponent();
@@ -25,7 +31,6 @@ namespace PlugINPRO.UI.Windows.AR
 
             DataContext = ViewModel;
         }
-
         private void AddRule_Click(object sender, RoutedEventArgs e)
         {
             var rule = new WallFinishRule();
@@ -63,14 +68,52 @@ namespace PlugINPRO.UI.Windows.AR
             DialogResult = true;
             Close();
         }
+
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
             Close();
         }
+        
+        private void EditTextBox_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox tb)
+            {
+                tb.Focus();
+                tb.SelectAll();
+            }
+        }
+
+        private void SourceWallTypeCombo_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is ComboBox combo && combo.Tag is WallFinishRule rule)
+                combo.SelectedItem = rule.SourceWallType;
+        }
+
+        private void SourceWallTypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox combo &&
+                combo.Tag is WallFinishRule rule &&
+                combo.SelectedItem is WallType wallType)
+            {
+                rule.SourceWallType = wallType;
+            }
+        }
+
+        private void FinishWallTypeCombo_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is ComboBox combo && combo.Tag is FinishLayer layer)
+                combo.SelectedItem = layer.FinishWallType;
+        }
+
+        private void FinishWallTypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox combo &&
+                combo.Tag is FinishLayer layer &&
+                combo.SelectedItem is WallType wallType)
+            {
+                layer.FinishWallType = wallType;
+            }
+        }
     }
-
-    
-
-    
 }

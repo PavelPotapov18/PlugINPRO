@@ -81,7 +81,7 @@ namespace PlugINPRO.Commands.AR
                 foreach (Room room in rooms)
                 {
                     Floor floor =
-                        builder.Create(doc, room, selectedType);
+                        builder.Create(doc, room, selectedType, wnd.ViewModel.DoorOffsetMode, wnd.ViewModel.CustomOffsetMm);
                     if (floor != null)
                         created++;
                 }

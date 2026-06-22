@@ -1,19 +1,12 @@
 ﻿using Autodesk.Revit.DB;
 using PlugINPRO.Services.AR;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using System;
+using System.Globalization;
+using Visibility = System.Windows.Visibility;
+
 
 namespace PlugINPRO.UI.Windows.AR
 {
@@ -28,6 +21,7 @@ namespace PlugINPRO.UI.Windows.AR
         {
             InitializeComponent();
             ViewModel = new FloorSettingsViewModel();
+
             foreach (FloorType ft in floorTypes)
                 ViewModel.FloorTypes.Add(ft);
 
@@ -40,14 +34,10 @@ namespace PlugINPRO.UI.Windows.AR
         {
             if (ViewModel.SelectedFloorType == null)
             {
-                MessageBox.Show(
-                    "Выберите тип пола.",
-                    "Внимание",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                MessageBox.Show("Выберите тип пола.", "Внимание",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
             DialogResult = true;
             Close();
         }
@@ -57,5 +47,17 @@ namespace PlugINPRO.UI.Windows.AR
             DialogResult = false;
             Close();
         }
+    }
+
+    // Конвертер bool → Visibility
+    public class BoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType,
+            object parameter, CultureInfo culture)
+            => value is bool b && b ? Visibility.Visible : Visibility.Collapsed;
+
+        public object ConvertBack(object value, Type targetType,
+            object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 }

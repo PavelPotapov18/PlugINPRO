@@ -1,15 +1,23 @@
 ﻿using Autodesk.Revit.DB;
+using System.ComponentModel;
 
 namespace PlugINPRO.Services.AR
 {
-    public class FinishLayer
+    public class FinishLayer : INotifyPropertyChanged
     {
-        public WallType FinishWallType { get; set; }
+        private WallType _finishWallType;
+        public WallType FinishWallType
+        {
+            get => _finishWallType;
+            set
+            {
+                _finishWallType = value;
+                OnPropertyChanged(nameof(FinishWallType));
+            }
+        }
 
-        // Отступ от низа стены-основы, в единицах Revit (футы внутри)
+        // Внутреннее хранение в футах (единицы Revit)
         public double BaseOffset { get; set; } = 0;
-
-        // Высота слоя отделки, в единицах Revit
         public double Height { get; set; } = 0;
 
         // Свойства для привязки в UI (мм)
@@ -28,5 +36,9 @@ namespace PlugINPRO.Services.AR
             set => Height = UnitUtils.ConvertToInternalUnits(
                 value, UnitTypeId.Millimeters);
         }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

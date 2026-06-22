@@ -42,6 +42,19 @@ namespace PlugINPRO.Commands.AR
 
             TaskDialog.Show("Rules", $"Правил: {vm.Rules.Count}");
 
+            // Добавь сразу после получения vm из окна
+            string debug = "";
+            foreach (var rule in vm.Rules)
+            {
+                debug += $"Правило: SourceWallType={rule.SourceWallType?.Name ?? "NULL"}\n";
+                foreach (var layer in rule.Layers)
+                {
+                    debug += $"  Слой: FinishWallType={layer.FinishWallType?.Name ?? "NULL"}, " +
+                             $"BaseOffset={layer.BaseOffsetMm}, Height={layer.HeightMm}\n";
+                }
+            }
+            TaskDialog.Show("DEBUG Rules", debug);
+
             List<Room> rooms = new List<Room>(); ;
 
             if (vm.IsAllRooms)

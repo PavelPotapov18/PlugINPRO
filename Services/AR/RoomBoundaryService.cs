@@ -12,11 +12,14 @@ namespace PlugINPRO.Services.AR
             Room room,
             List<WallFinishRule> rules)
         {
-            List<FinishSegmentInfo> result = new List<FinishSegmentInfo>();
+            List<FinishSegmentInfo> result =
+                new List<FinishSegmentInfo>();
 
-            SpatialElementBoundaryOptions options = new SpatialElementBoundaryOptions();
+            SpatialElementBoundaryOptions options =
+                new SpatialElementBoundaryOptions();
 
-            IList<IList<BoundarySegment>> loops = room.GetBoundarySegments(options);
+            IList<IList<BoundarySegment>> loops =
+                room.GetBoundarySegments(options);
 
             if (loops == null)
                 return result;
@@ -25,7 +28,8 @@ namespace PlugINPRO.Services.AR
             {
                 foreach (BoundarySegment segment in loop)
                 {
-                    Element host = doc.GetElement(segment.ElementId);
+                    Element host =
+                        doc.GetElement(segment.ElementId);
 
                     if (!(host is Wall wall))
                         continue;

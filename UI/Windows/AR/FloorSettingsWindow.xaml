@@ -1,13 +1,24 @@
 ﻿<Window x:Class="PlugINPRO.UI.Windows.AR.FloorSettingsWindow"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Title="Настройка пола"
-             Height="200" Width="400"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
+             xmlns:local="clr-namespace:PlugINPRO.UI.Windows.AR"
+             xmlns:ar="clr-namespace:PlugINPRO.Services.AR"
+        Title="Настройка пола"
+             Height="280" Width="450"
              WindowStartupLocation="CenterScreen">
+    
+
+            <Window.Resources>
+                <local:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+            </Window.Resources>
+    
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -22,7 +33,40 @@
                   DisplayMemberPath="Name"
                   Margin="0,0,0,15"/>
 
-        <StackPanel Grid.Row="2"
+        <!-- Режим дверных проёмов -->
+        <TextBlock Grid.Row="2"
+                   Text="Контур пола в дверных проёмах:"
+                   Margin="0,0,0,4"
+                   FontWeight="SemiBold"/>
+        <ComboBox Grid.Row="3"
+                  SelectedValue="{Binding DoorOffsetMode, Mode=TwoWay}"
+                  SelectedValuePath="Tag"
+                  Margin="0,0,0,8">
+            <ComboBoxItem Content="Не заводить контур в дверные проёмы"
+                          Tag="{x:Static ar:DoorOffsetMode.None}"/>
+            <ComboBoxItem Content="Заводить контур до середины стены"
+                          Tag="{x:Static ar:DoorOffsetMode.ToWallCenter}"/>
+            <ComboBoxItem Content="Заводить контур на всю толщину стены"
+                          Tag="{x:Static ar:DoorOffsetMode.ToWallFull}"/>
+            <ComboBoxItem Content="Заводить контур на указанное значение, мм"
+                          Tag="{x:Static ar:DoorOffsetMode.Custom}"/>
+        </ComboBox>
+
+        <!-- Поле ввода для Custom -->
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    Visibility="{Binding IsCustomOffset,
+                        Converter={StaticResource BoolToVisibility}}"
+                    Margin="0,0,0,8">
+            <TextBlock Text="Значение смещения, мм:"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0"/>
+            <TextBox Width="80"
+                     Text="{Binding CustomOffsetMm, Mode=TwoWay,
+                         UpdateSourceTrigger=PropertyChanged}" Height="25"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="5"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">
             <Button Content="ОК"

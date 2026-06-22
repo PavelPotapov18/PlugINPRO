@@ -4,7 +4,7 @@ using System.Text;
 
 namespace PlugINPRO.Services.AR
 {
-    public class CsvExporter
+    internal class CsvExporter
     {
         private const string Separator = ",";
         public void Export(
