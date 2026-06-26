@@ -70,6 +70,8 @@
     <Compile Include="Commands\TS\DimensionToGridsCommand.cs" />
     <Compile Include="Commands\VK\HydraulicCalculateCommand.cs" />
     <Compile Include="Commands\VK\HydraulicCalcViewModel.cs" />
+    <Compile Include="Commands\VK\PipeSupportsByNumberCommand.cs" />
+    <Compile Include="Services\AR\BoolToVisibilityConverter.cs" />
     <Compile Include="Services\AR\CsvExporter.cs" />
     <Compile Include="Services\AR\DoorOffsetMode.cs" />
     <Compile Include="Services\AR\FinishLayer.cs" />
@@ -77,7 +79,10 @@
     <Compile Include="Services\AR\FinishWallBuilder.cs" />
     <Compile Include="Services\AR\FinishWallsViewModel.cs" />
     <Compile Include="Services\AR\FloorSettingsViewModel.cs" />
+    <Compile Include="Services\AR\MatchesAllFilterRules.cs" />
     <Compile Include="Services\AR\RoomBoundaryService.cs" />
+    <Compile Include="Services\AR\RoomFilterCondition.cs" />
+    <Compile Include="Services\AR\RoomFilterRule.cs" />
     <Compile Include="Services\AR\RoomFloorBuilder.cs" />
     <Compile Include="Services\AR\WallFinishRule.cs" />
     <Compile Include="UI\Windows\AR\FinishSettingsWindow.xaml.cs">
@@ -122,10 +127,13 @@
     <Compile Include="UI\Windows\VK\HydraulicCalcWindow.xaml.cs">
       <DependentUpon>HydraulicCalcWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UI\Windows\VK\PipeFittingSettingsWindow.xaml.cs">
-      <DependentUpon>PipeFittingSettingsWindow.xaml</DependentUpon>
+    <Compile Include="UI\Windows\VK\PipeFittingByNumberSettingsWindow.xaml.cs">
+      <DependentUpon>PipeFittingByNumberSettingsWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Commands\VK\PipeSupportCommand.cs" />
+    <Compile Include="UI\Windows\VK\PipeFittingByLengthSettingsWindow.xaml.cs">
+      <DependentUpon>PipeFittingByLengthSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Commands\VK\PipeSupportsByLengthCommand.cs" />
     <Compile Include="Commands\PluginInfo\InfoCommand.cs" />
     <Compile Include="UI\Windows\PluginInfo\InfoWindow.xaml.cs">
       <DependentUpon>InfoWindow.xaml</DependentUpon>
@@ -192,7 +200,11 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="UI\Windows\VK\PipeFittingSettingsWindow.xaml">
+    <Page Include="UI\Windows\VK\PipeFittingByNumberSettingsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\Windows\VK\PipeFittingByLengthSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

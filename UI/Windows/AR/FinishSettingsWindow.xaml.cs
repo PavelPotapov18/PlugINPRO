@@ -2,11 +2,14 @@
 using PlugINPRO.Services.AR;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using Visibility = System.Windows.Visibility;
 
 namespace PlugINPRO.UI.Windows.AR
 {
@@ -16,13 +19,15 @@ namespace PlugINPRO.UI.Windows.AR
     public partial class FinishSettingsWindow : Window
     {
         public FinishWallsViewModel ViewModel { get; }
-        public FinishSettingsWindow(List<WallType> wallTypes)
+        public FinishSettingsWindow(List<WallType> wallTypes, List<string> roomParamNames)
         {
             InitializeComponent();
             ViewModel = new FinishWallsViewModel();
 
             foreach (WallType wt in wallTypes)
                 ViewModel.WallTypes.Add(wt);
+            foreach (string p in roomParamNames)
+                ViewModel.RoomParameterNames.Add(p);
 
             // Одно пустое правило с одним пустым слоем по умолчанию
             var rule = new WallFinishRule();
@@ -115,5 +120,62 @@ namespace PlugINPRO.UI.Windows.AR
                 layer.FinishWallType = wallType;
             }
         }
+
+        // Параметр помещения
+        private void FilterParamCombo_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is ComboBox combo && combo.Tag is RoomFilterRule rule)
+                combo.SelectedItem = rule.ParameterName;
+        }
+
+        private void FilterParamCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox combo &&
+                combo.Tag is RoomFilterRule rule &&
+                combo.SelectedItem is string paramName)
+            {
+                rule.ParameterName = paramName;
+            }
+        }
+
+        // Условие
+        private void FilterConditionCombo_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is ComboBox combo && combo.Tag is RoomFilterRule rule)
+            {
+                foreach (ComboBoxItem item in combo.Items)
+                {
+                    if (item.Tag is RoomFilterCondition c && c == rule.Condition)
+                    {
+                        combo.SelectedItem = item;
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void FilterConditionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox combo &&
+                combo.Tag is RoomFilterRule rule &&
+                combo.SelectedItem is ComboBoxItem item &&
+                item.Tag is RoomFilterCondition condition)
+            {
+                rule.Condition = condition;
+            }
+        }
+
+        // Кнопки
+        private void AddFilterRule_Click(object sender, RoutedEventArgs e)
+        {
+            ViewModel.FilterRules.Add(new RoomFilterRule());
+        }
+
+        private void DeleteFilterRule_Click(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel.FilterRules.Count > 0)
+                ViewModel.FilterRules.Remove(ViewModel.FilterRules.Last());
+        }
     }
+    
 }

@@ -11,7 +11,7 @@ using System.Diagnostics;
 namespace PlugINPRO.Commands.VK
 {
     [Transaction(TransactionMode.Manual)]
-    public class PipeSupportsCommand : IExternalCommand
+    public class PipeSupportsByLengthCommand : IExternalCommand
     {
         public Result Execute(
             ExternalCommandData commandData,
@@ -25,7 +25,7 @@ namespace PlugINPRO.Commands.VK
             try
             {
                 // 1. Показываем окно настроек для труб
-                PipeFittingSettingsWindow settingsWindow = new PipeFittingSettingsWindow(doc);
+                PipeFittingByLengthSettingsWindow settingsWindow = new PipeFittingByLengthSettingsWindow(doc);
 
                 bool? dialogResult = null;
 
@@ -57,9 +57,19 @@ namespace PlugINPRO.Commands.VK
                     TaskDialog.Show("Ошибка", "Выбранный элемент не является трубопроводом");
                     return Result.Failed;
                 }
+                
+                
 
-                // 3. Получаем размеры трубы
+                // 3. Получаем размеры трубы, угол наклона трубы по уклону в %
                 PipeDimensions pipeDims = GetPipeDimensions(pipe);
+                double slopeAngle = Math.Atan(pipeDims.Slope);
+                //Параметры системы трубопровода
+                Parameter systemClassification = pipe.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM);
+                Parameter systemType = pipe.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+                Parameter systemName = pipe.get_Parameter(BuiltInParameter.RBS_SYSTEM_NAME_PARAM);
+                Parameter systemAbbreviation = pipe.get_Parameter(BuiltInParameter.RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM);
+
+
 
                 // 4. Получение кривой трубы
                 LocationCurve locationCurve = pipe.Location as LocationCurve;
@@ -70,8 +80,10 @@ namespace PlugINPRO.Commands.VK
                 }
 
                 Curve curve = locationCurve.Curve;
-                double spacingFeet = settingsWindow.Spacing / 304.8;
-                double offsetFeet = settingsWindow.Offset / 304.8;
+                double curveLengthMeters = UnitUtils.ConvertFromInternalUnits(curve.Length, UnitTypeId.Millimeters);
+
+                double spacingFeet = UnitUtils.ConvertToInternalUnits(settingsWindow.Spacing / Math.Cos(slopeAngle), UnitTypeId.Millimeters);
+                double offsetFeet = UnitUtils.ConvertToInternalUnits(settingsWindow.Offset / Math.Cos(slopeAngle), UnitTypeId.Millimeters);
 
                 // 5. Расчет точек размещения
                 List<XYZ> placementPoints = CalculatePlacementPoints(curve, spacingFeet, offsetFeet);
@@ -80,7 +92,7 @@ namespace PlugINPRO.Commands.VK
                 {
                     TaskDialog.Show("Внимание",
                         $"Не удалось рассчитать точки размещения опор.\n" +
-                        $"Длина трубопровода: {curve.Length * 304.8:F0} мм\n" +
+                        $"Длина трубопровода: {curveLengthMeters:F0} мм\n" +
                         $"Отступ: {settingsWindow.Offset} мм\n" +
                         $"Шаг: {settingsWindow.Spacing} мм");
                     return Result.Cancelled;
@@ -136,7 +148,12 @@ namespace PlugINPRO.Commands.VK
                             if (support != null)
                             {
                                 // Устанавливаем параметры
-                                SetPipeParameters(support, pipeDims.Diameter);
+                                SetPipeParameters(support, 
+                                    pipeDims.Diameter,
+                                    systemClassification.AsString(),
+                                    doc.GetElement(systemType.AsElementId()).Name,
+                                    systemName.AsString(),
+                                    systemAbbreviation.AsString());
 
                                 // ПОВОРАЧИВАЕМ опору
                                 RotateSupport(support, point, rotationOrientation);
@@ -163,7 +180,8 @@ namespace PlugINPRO.Commands.VK
                         $"Шаг: {settingsWindow.Spacing} мм\n" +
                         $"Отступ: {settingsWindow.Offset} мм\n" +
                         $"Тип: {(isVertical ? "Вертикальный" : "Горизонтальный")}\n" +
-                        $"Диаметр трубы: Ø{pipeDims.Diameter:F0} мм";
+                        $"Диаметр трубы: Ø{pipeDims.Diameter:F0} мм\n" + 
+                        $"Уклон трубы: {pipeDims.Slope}%";
 
                     TaskDialog.Show("Результат", resultMessage);
                 }
@@ -444,6 +462,8 @@ namespace PlugINPRO.Commands.VK
         private class PipeDimensions
         {
             public double Diameter { get; set; }
+            public double Slope { get; set; }
+
         }
 
         private PipeDimensions GetPipeDimensions(Pipe pipe)
@@ -479,16 +499,25 @@ namespace PlugINPRO.Commands.VK
                         dims.Diameter = 50.0;
                     }
                 }
+                Parameter slopeParam = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_SLOPE);
+                dims.Slope = slopeParam.AsDouble();
             }
             catch
             {
                 dims.Diameter = 50.0;
+                dims.Slope = 0.0;
             }
 
             return dims;
         }
 
-        private void SetPipeParameters(FamilyInstance support, double diameterMm)
+        private void SetPipeParameters(
+            FamilyInstance support, 
+            double diameterMm, 
+            string systemClassification, 
+            string systemType, 
+            string systemName, 
+            string systemAbbreviation)
         {
             try
             {
@@ -501,6 +530,12 @@ namespace PlugINPRO.Commands.VK
                 SetStringParameterValue(support, "Размер_трубы", $"{diameterMm:F0}");
                 SetStringParameterValue(support, "Pipe_Size", $"{diameterMm:F0}");
                 SetStringParameterValue(support, "Size", $"{diameterMm:F0}");
+
+                SetStringParameterValue(support, "ADSK_Система_Классификация", systemClassification);
+                SetStringParameterValue(support, "ADSK_Система_Тип", systemType);
+                SetStringParameterValue(support, "ADSK_Система_Имя", systemName);
+                SetStringParameterValue(support, "ADSK_Система_Сокращение", systemAbbreviation);
+
             }
             catch (Exception ex)
             {

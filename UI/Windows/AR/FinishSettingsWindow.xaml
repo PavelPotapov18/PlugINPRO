@@ -3,9 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:PlugINPRO.UI.Windows.AR"
-             Title="Настройка отделки"
+             xmlns:local="clr-namespace:PlugINPRO.Services.AR"
+             xmlns:ar="clr-namespace:PlugINPRO.Services.AR" 
+        Title="Настройка отделки"
              Height="600" Width="900">
+
+    <Window.Resources>
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+    </Window.Resources>
+    
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -20,6 +26,85 @@
                              IsChecked="{Binding IsAllRooms}"/>
                 <RadioButton Content="Выбранные помещения"
                              IsChecked="{Binding IsSelectedRooms}"/>
+                <RadioButton Content="По параметрам помещений"
+                             IsChecked="{Binding IsFilteredRooms}"/>
+
+                <Border Margin="20,6,0,0"
+                        BorderBrush="#CCCCCC"
+                        BorderThickness="1"
+                        CornerRadius="3"
+                        Padding="6"
+                        Visibility="{Binding IsFilterPanelVisible,
+                            Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <DataGrid x:Name="FilterGrid"
+                                      ItemsSource="{Binding FilterRules}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      MaxHeight="150"
+                                      Margin="0,0,0,6">
+
+                            <DataGrid.Columns>
+                                <!-- Параметр -->
+                                <DataGridTemplateColumn Header="Параметр" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox
+                                                ItemsSource="{Binding DataContext.RoomParameterNames,
+                                                    RelativeSource={RelativeSource AncestorType=Window}}"
+                                                Tag="{Binding}"
+                                                DisplayMemberPath="."
+                                                Loaded="FilterParamCombo_Loaded"
+                                                SelectionChanged="FilterParamCombo_SelectionChanged"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Условие -->
+                                <DataGridTemplateColumn Header="Условие" Width="130">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox Tag="{Binding}"
+                                                      Loaded="FilterConditionCombo_Loaded"
+                                                      SelectionChanged="FilterConditionCombo_SelectionChanged">
+                                                <ComboBoxItem Content="Равно"
+                                                              Tag="{x:Static ar:RoomFilterCondition.Equals}"/>
+                                                <ComboBoxItem Content="Не равно"
+                                                              Tag="{x:Static ar:RoomFilterCondition.NotEquals}"/>
+                                                <ComboBoxItem Content="Содержит"
+                                                              Tag="{x:Static ar:RoomFilterCondition.Contains}"/>
+                                                <ComboBoxItem Content="Не содержит"
+                                                              Tag="{x:Static ar:RoomFilterCondition.NotContains}"/>
+                                            </ComboBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <!-- Значение -->
+                                <DataGridTemplateColumn Header="Значение" Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Tag="{Binding}"
+                                                     Text="{Binding Value, Mode=TwoWay,
+                                                         UpdateSourceTrigger=PropertyChanged}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="+ Условие"
+                                        Width="90" Margin="0,0,6,0"
+                                        Click="AddFilterRule_Click"/>
+                            <Button Content="- Условие"
+                                        Width="90"
+                                        Click="DeleteFilterRule_Click"/>
+                        </StackPanel>
+
+                    </StackPanel>
+                </Border>
+
+
             </StackPanel>
         </GroupBox>
 

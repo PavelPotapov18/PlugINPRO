@@ -11,6 +11,36 @@ namespace PlugINPRO.Services.AR
 
         public FloorType SelectedFloorType { get; set; }
 
+        // Режим выбора помещений
+        private bool _isSelectedRooms = true;
+        private bool _isFilteredRooms;
+
+        public bool IsSelectedRooms
+        {
+            get => _isSelectedRooms;
+            set { _isSelectedRooms = value; OnPropertyChanged(nameof(IsSelectedRooms)); }
+        }
+
+        public bool IsFilteredRooms
+        {
+            get => _isFilteredRooms;
+            set
+            {
+                _isFilteredRooms = value;
+                OnPropertyChanged(nameof(IsFilteredRooms));
+                OnPropertyChanged(nameof(IsFilterPanelVisible));
+            }
+        }
+        public bool IsFilterPanelVisible => _isFilteredRooms;
+
+        // Параметры помещений для фильтра
+        public ObservableCollection<string> RoomParameterNames { get; set; }
+            = new ObservableCollection<string>();
+
+        public ObservableCollection<RoomFilterRule> FilterRules { get; set; }
+            = new ObservableCollection<RoomFilterRule>();
+
+
         private DoorOffsetMode _doorOffsetMode = DoorOffsetMode.None;
         public DoorOffsetMode DoorOffsetMode
         {

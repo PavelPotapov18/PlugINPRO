@@ -1,15 +1,16 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
+using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using PlugINPRO;
+using PlugINPRO.UI.Windows.OV;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Diagnostics;
+using System.Linq;
 using System.Windows;
-using PlugINPRO.UI.Windows.OV;
 
 namespace PlugINPRO.Commands.OV
 {
@@ -62,6 +63,11 @@ namespace PlugINPRO.Commands.OV
 
                 // 3. Получаем размеры воздуховода
                 DuctDimensions ductDims = GetDuctDimensions(duct);
+                //Параметры системы трубопровода
+                Parameter systemClassification = duct.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM);
+                Parameter systemType = duct.get_Parameter(BuiltInParameter.RBS_DUCT_SYSTEM_TYPE_PARAM);
+                Parameter systemName = duct.get_Parameter(BuiltInParameter.RBS_SYSTEM_NAME_PARAM);
+                Parameter systemAbbreviation = duct.get_Parameter(BuiltInParameter.RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM);
 
                 // 4. Получение кривой воздуховода
                 LocationCurve locationCurve = duct.Location as LocationCurve;
@@ -154,6 +160,13 @@ namespace PlugINPRO.Commands.OV
                                 {
                                     SetRectangularParameters(support, ductDims.Width, ductDims.Height);
                                 }
+
+                                SetSystemParameters(
+                                    support,
+                                    systemClassification.AsString(),
+                                    doc.GetElement(systemType.AsElementId()).Name,
+                                    systemName.AsString(),
+                                    systemAbbreviation.AsString());
 
                                 // ПОВОРАЧИВАЕМ опору
                                 RotateSupport(support, point, rotationOrientation);
@@ -648,6 +661,32 @@ namespace PlugINPRO.Commands.OV
             SetParameterValue(support, "Diameter", diameterMm);
         }
 
+        private void SetSystemParameters(
+            FamilyInstance support,
+            string systemClassification,
+            string systemType,
+            string systemName,
+            string systemAbbreviation)
+        {
+            SetStringParameterValue(support, "ADSK_Система_Классификация", systemClassification);
+            SetStringParameterValue(support, "ADSK_Система_Тип", systemType);
+            SetStringParameterValue(support, "ADSK_Система_Имя", systemName);
+            SetStringParameterValue(support, "ADSK_Система_Сокращение", systemAbbreviation);
+        }
+
+        private void SetStringParameterValue(FamilyInstance support, string paramName, string value)
+        {
+            try
+            {
+                Parameter param = support.LookupParameter(paramName);
+                if (param != null && !param.IsReadOnly)
+                {
+                    if (param.StorageType == StorageType.String)
+                        param.Set(value);
+                }
+            }
+            catch { }
+        }
         // Простой диалог (запасной вариант)
         private bool? ShowSimpleDialog(Document doc)
         {

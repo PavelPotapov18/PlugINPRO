@@ -1,6 +1,7 @@
 ﻿using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -123,9 +124,7 @@ namespace PlugINPRO.Services.AR
                 XYZ segEnd = segCurve.GetEndPoint(1);
                 XYZ segDir = (segEnd - segStart).Normalize();
 
-                // Нормаль должна смотреть ИЗ помещения
-                if (wallNormal.DotProduct(toRoom) > 0)
-                    wallNormal = wallNormal.Negate();
+                
 
                 // Сортируем двери вдоль сегмента
                 doorsInWall = doorsInWall
@@ -143,12 +142,22 @@ namespace PlugINPRO.Services.AR
                     double doorWidth = door.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM)?.AsDouble() ?? 0;
                     if (doorWidth == 0)
                         doorWidth = door.Symbol.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM)?.AsDouble() ?? 0;
+                    if (doorWidth == 0)
+                        continue; // пропускаем дверь с нулевой шириной
 
 
                     // Проекция центра двери на сегмент
                     double tCenter = segDir.DotProduct(doorCenter - segStart);
                     double tStart = tCenter - doorWidth / 2.0;
                     double tEnd = tCenter + doorWidth / 2.0;
+
+                    // Зажимаем в пределах сегмента
+                    double segLen = (segEnd - segStart).GetLength();
+                    tStart = Math.Max(0, tStart);
+                    tEnd = Math.Min(segLen, tEnd);
+
+                    if (tEnd <= tStart)
+                        continue; // дверь вне сегмента
 
                     double doorWidthMm = UnitUtils.ConvertFromInternalUnits(doorWidth, UnitTypeId.Millimeters);
                     double offsetMm = UnitUtils.ConvertFromInternalUnits(offset, UnitTypeId.Millimeters);
@@ -172,13 +181,23 @@ namespace PlugINPRO.Services.AR
                     resultCurves.Add(Line.CreateBound(p2, p3));
                     resultCurves.Add(Line.CreateBound(p3, p4));
 
-                    cursor = doorPtEnd;
+                    cursor = p4;
                 }
 
                 // Остаток сегмента после последней двери
                 if ((segEnd - cursor).GetLength() > 1e-6)
                     resultCurves.Add(Line.CreateBound(cursor, segEnd));
             }
+
+            // Проверяем замкнутость — соединяем последнюю точку с первой если нужно
+            if (resultCurves.Count > 0)
+            {
+                XYZ firstPt = resultCurves[0].GetEndPoint(0);
+                XYZ lastPt = resultCurves[resultCurves.Count - 1].GetEndPoint(1);
+                if ((lastPt - firstPt).GetLength() > 1e-6)
+                    resultCurves.Add(Line.CreateBound(lastPt, firstPt));
+            }
+
             // Собираем CurveLoop из отрезков
             CurveLoop curveLoop = new CurveLoop();
             foreach (Curve c in resultCurves)

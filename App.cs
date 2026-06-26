@@ -443,20 +443,44 @@ namespace PlugINPRO
             // ============================================
             RibbonPanel vkPanel = application.CreateRibbonPanel("INPRO", "ВК");
 
-            // Кнопка "Опоры трубопроводов"
-            PushButtonData pipeSupportsButtonData = new PushButtonData(
-                "PipeSupports",
-                "Опоры\nтрубопроводов",
+            // Кнопка "Расстновка опор по всей длине трубопровода"
+            PushButtonData pipeSupportsByLengthButtonData = new PushButtonData(
+                "PipeSupportsByPipeLength",
+                "Расстновка опор по всей длине трубопровода",
                 Assembly.GetExecutingAssembly().Location,
-                "PlugINPRO.Commands.VK.PipeSupportsCommand"
+                "PlugINPRO.Commands.VK.PipeSupportsByLengthCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
                 Image = LoadImage("PlugINPRO.Resources.VK.PipeFitting16.png"),
-                ToolTip = "Расстановка опор по траектории трубопровода\nВключает выбор крепления и шага"
+                ToolTip = "Расстановка опор по всей траектории трубопровода\nВключает выбор крепления и шага"
             };
 
-            vkPanel.AddItem(pipeSupportsButtonData);
+            // Кнопка "Расстновка заданного числа опор"
+            PushButtonData pipeSupportsByNumberButtonData = new PushButtonData(
+                "PipeSupportsByNumber",
+                "Расстановка заданного числа опор",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.Commands.VK.PipeSupportsByNumberCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.PipeFitting16.png"),
+                ToolTip = "Расстановка опор по траектории трубопровода\nВключает выбор крепления, шага и количества опор"
+            };
+
+            // Кнопка-контейнер "Опоры трубопроводов"
+            PulldownButtonData pipeSupportPullData = new PulldownButtonData("PipeSupports", "Опоры трубопроводов")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),  // Основная иконка кнопки-контейнера
+                ToolTip = "Инструменты по расстановке опор трубопроводов",
+                LongDescription = "Различные опции расстановки опор (по всей длине или конкретное количество)"
+            };
+
+            PulldownButton pipeSupportsPulldownButton =  vkPanel.AddItem(pipeSupportPullData) as PulldownButton;
+            pipeSupportsPulldownButton.AddPushButton(pipeSupportsByLengthButtonData);
+            pipeSupportsPulldownButton.AddPushButton(pipeSupportsByNumberButtonData);
+
 
             // ============================================
             // НОВАЯ КНОПКА-КОНТЕЙНЕР "Гидравлический расчёт" на панели ВК

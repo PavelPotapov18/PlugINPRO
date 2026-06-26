@@ -30,7 +30,28 @@ namespace PlugINPRO.Commands.AR
                 .OrderBy(x => x.Name)
                 .ToList();
 
-            FinishSettingsWindow wnd = new FinishSettingsWindow(wallTypes);
+            // Собираем уникальные имена строковых параметров из помещений
+            List<Room> allRooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .Cast<Room>()
+                .Where(r => r.Area > 0)
+                .ToList();
+
+            HashSet<string> paramNames = new HashSet<string>();
+            foreach (Room room in allRooms)
+            {
+                foreach (Parameter param in room.Parameters)
+                {
+                    if (param.StorageType == StorageType.String &&
+                        !string.IsNullOrEmpty(param.Definition.Name))
+                    {
+                        paramNames.Add(param.Definition.Name);
+                    }
+                }
+            }
+
+            FinishSettingsWindow wnd = new FinishSettingsWindow(wallTypes, paramNames.OrderBy(x => x).ToList());
             bool? result = wnd.ShowDialog();
 
             if (result != true)
@@ -75,6 +96,16 @@ namespace PlugINPRO.Commands.AR
 
                 rooms = refs.Select(x => doc.GetElement(x))
                     .OfType<Room>()
+                    .ToList();
+            }
+            else if (vm.IsFilteredRooms)
+            {
+                rooms = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Room>()
+                    .Where(r => r.Area > 0)
+                    .Where(r => MatchesAllFilterRules.Match(r, vm.FilterRules.ToList()))
                     .ToList();
             }
 
