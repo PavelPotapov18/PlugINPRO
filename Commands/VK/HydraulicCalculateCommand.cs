@@ -999,7 +999,7 @@ namespace PlugINPRO.Commands.VK
             return dir.GetLength() > 1e-6 ? dir.Normalize() : null;
         }
 
-        private PipingSystem GetPipingSystem(Pipe pipe)
+        private PipingSystem GetPipingSystem(Pipe pipe) 
         {
             if (pipe.MEPSystem == null) return null;
             return _doc.GetElement(pipe.MEPSystem.Id) as PipingSystem;

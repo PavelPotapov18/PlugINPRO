@@ -457,6 +457,25 @@ namespace PlugINPRO
             };
 
             vkPanel.AddItem(pipeSupportsButtonData);
+            // ============================================
+            // НОВАЯ КНОПКА "Краска" на панели ВК
+            // ============================================
+
+            // Кнопка "Краска" - используем другое имя переменной
+            PushButtonData paintVKButtonData = new PushButtonData(  // ← переименовали
+                "PaintCalculator",
+                "Краска",
+                assemblyPath,
+                "PlugINPRO.Commands.VK.PaintCalculatorCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.Paint32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.Paint16.png"),
+                ToolTip = "Расчет расхода краски для системы ВК",
+                LongDescription = "Выбирает систему трубопроводов и рассчитывает расход краски"
+            };
+
+            vkPanel.AddItem(paintVKButtonData);  // ← обновили имя
 
             // ============================================
             // НОВАЯ КНОПКА-КОНТЕЙНЕР "Гидравлический расчёт" на панели ВК

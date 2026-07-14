@@ -114,7 +114,7 @@ namespace PlugINPRO.Commands.VK
             {
                 string paramName = definition.Name;
 
-                if (existingParams.Contains(paramName))
+                if (existingParams.Contains(paramName)) 
                 {
                     TaskDialog.Show("Пропущено", $"Параметр '{paramName}' уже существует в категории {targetCategory.Name}");
                     continue;
