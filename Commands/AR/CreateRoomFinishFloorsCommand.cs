@@ -38,35 +38,59 @@ namespace PlugINPRO.Commands.AR
                 return Result.Cancelled;
             }
 
+            // Параметры помещений для фильтра
+            List<Room> allRooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .Cast<Room>()
+                .Where(r => r.Area > 0)
+                .ToList();
+
+            HashSet<string> paramNames = new HashSet<string>();
+            foreach (Room room in allRooms)
+            {
+                foreach (Parameter param in room.Parameters)
+                {
+                    if (param.StorageType == StorageType.String &&
+                        !string.IsNullOrEmpty(param.Definition.Name))
+                        paramNames.Add(param.Definition.Name);
+                }
+            }
+
             // Открываем окно настроек
-            FloorSettingsWindow wnd = new FloorSettingsWindow(floorTypes);
+            FloorSettingsWindow wnd = new FloorSettingsWindow(floorTypes, paramNames.OrderBy(x => x).ToList());
             bool? result = wnd.ShowDialog();
 
             if (result != true)
                 return Result.Cancelled;
+            
+            
+            List<Room> rooms;
+
+            // После Ok — применяем режим выбора помещений
+            if (wnd.ViewModel.IsFilteredRooms)
+            {
+                rooms = allRooms
+                    .Where(r => MatchesAllFilterRules.Match(r, wnd.ViewModel.FilterRules.ToList()))
+                    .ToList();
+            }
+            else
+            {
+                // IsSelectedRooms — прокликивание как было
+                IList<Reference> refs = uidoc.Selection.PickObjects(
+                    ObjectType.Element,
+                    new RoomSelectionFilter(),
+                    "Выберите помещения");
+
+                rooms = refs.Select(r => doc.GetElement(r))
+                    .OfType<Room>()
+                    .Where(r => r.Area > 0)
+                    .ToList();
+            }
 
             FloorType selectedType = wnd.ViewModel.SelectedFloorType;
 
-            // Выбор помещений
-            IList<Reference> refs;
-            try
-            {
-                refs = uidoc.Selection.PickObjects(
-                    ObjectType.Element,
-                    new RoomSelectionFilter(),
-                    "Выберите помещения для создания пола");
-            }
-            catch (Autodesk.Revit.Exceptions
-                .OperationCanceledException)
-            {
-                return Result.Cancelled;
-            }
-
-            List<Room> rooms = refs
-                .Select(r => doc.GetElement(r))
-                .OfType<Room>()
-                .Where(r => r.Area > 0)
-                .ToList();
+            
 
             if (rooms.Count == 0)
                 return Result.Cancelled;
@@ -81,7 +105,7 @@ namespace PlugINPRO.Commands.AR
                 foreach (Room room in rooms)
                 {
                     Floor floor =
-                        builder.Create(doc, room, selectedType);
+                        builder.Create(doc, room, selectedType, wnd.ViewModel.DoorOffsetMode, wnd.ViewModel.CustomOffsetMm);
                     if (floor != null)
                         created++;
                 }

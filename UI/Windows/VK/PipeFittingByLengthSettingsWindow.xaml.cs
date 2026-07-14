@@ -8,7 +8,7 @@ using System.Windows.Input;
 
 namespace PlugINPRO.UI.Windows.VK
 {
-    public partial class PipeFittingSettingsWindow : Window
+    public partial class PipeFittingByLengthSettingsWindow : Window
     {
         public FamilySymbol SelectedFamily { get; private set; }
         public double Spacing { get; private set; }
@@ -18,7 +18,7 @@ namespace PlugINPRO.UI.Windows.VK
         private Document _document;
         private List<FamilySymbol> _availableFamilies;
 
-        public PipeFittingSettingsWindow(Document document)
+        public PipeFittingByLengthSettingsWindow(Document document)
         {
             InitializeComponent();
             _document = document;
