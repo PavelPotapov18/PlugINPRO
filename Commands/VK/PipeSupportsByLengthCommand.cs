@@ -522,6 +522,7 @@ namespace PlugINPRO.Commands.VK
             try
             {
                 SetDoubleParameterValue(support, "D", diameterMm);
+                SetDoubleParameterValue(support, "DN", diameterMm);
                 SetDoubleParameterValue(support, "Диаметр", diameterMm);
                 SetDoubleParameterValue(support, "Diameter", diameterMm);
                 SetDoubleParameterValue(support, "PIPE_D", diameterMm);
