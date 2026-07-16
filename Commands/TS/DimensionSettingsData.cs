@@ -14,12 +14,14 @@ namespace PlugINPRO.Commands.TS
         public DimensionMode Mode { get; set; }
         public string DimensionTypeId { get; set; }
         public double OffsetDistance { get; set; }
+        public bool ProjectToFloor { get; set; } // 🆕 НОВОЕ ПОЛЕ
 
         public DimensionSettingsData()
         {
             Mode = DimensionMode.ByPipeLength;
             DimensionTypeId = "";
             OffsetDistance = 0.3;
+            ProjectToFloor = false; // По умолчанию выключено
         }
 
         private static string SettingsPath

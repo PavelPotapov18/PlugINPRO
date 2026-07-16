@@ -443,7 +443,7 @@ namespace PlugINPRO
             // ============================================
             RibbonPanel vkPanel = application.CreateRibbonPanel("INPRO", "ВК");
 
-            // Кнопка "Расстановка опор по всей длине трубопровода"
+            // 1. Сначала создаем кнопки
             PushButtonData pipeSupportsByLengthButtonData = new PushButtonData(
                 "PipeSupportsByPipeLength",
                 "Расстновка опор по всей длине трубопровода",
@@ -456,37 +456,39 @@ namespace PlugINPRO
                 ToolTip = "Расстановка опор по всей траектории трубопровода\nВключает выбор крепления и шага"
             };
 
-            // Кнопка "Расстновка заданного числа опор"
-            PushButtonData pipeSupportsByNumberButtonData = new PushButtonData(
-                "PipeSupportsByNumber",
-                "Расстановка заданного числа опор",
+            // НОВАЯ КНОПКА "Копировать относительно опоры"
+            PushButtonData pipeSupportCopyButtonData = new PushButtonData(
+                "PipeSupportCopy",
+                "Копировать\nотносительно\nопоры",
                 Assembly.GetExecutingAssembly().Location,
-                "PlugINPRO.Commands.VK.PipeSupportsByNumberCommand"
+                "PlugINPRO.Commands.VK.PipeSupportCopyCommand"
             )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
                 Image = LoadImage("PlugINPRO.Resources.VK.PipeFitting16.png"),
-                ToolTip = "Расстановка опор по траектории трубопровода\nВключает выбор крепления, шага и количества опор"
+                ToolTip = "Копирование опоры вдоль трассы трубы с заданным смещением",
+                LongDescription = "Выберите существующую опору, укажите смещение (+ или -) для копирования вдоль трассы трубы"
             };
 
-            // Кнопка-контейнер "Опоры трубопроводов"
+            // 2. Создаем кнопку-контейнер
             PulldownButtonData pipeSupportPullData = new PulldownButtonData("PipeSupports", "Опоры трубопроводов")
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),  // Основная иконка кнопки-контейнера
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
                 ToolTip = "Инструменты по расстановке опор трубопроводов",
                 LongDescription = "Различные опции расстановки опор (по всей длине или конкретное количество)"
             };
 
-            PulldownButton pipeSupportsPulldownButton =  vkPanel.AddItem(pipeSupportPullData) as PulldownButton;
+            PulldownButton pipeSupportsPulldownButton = vkPanel.AddItem(pipeSupportPullData) as PulldownButton;
+
+            // 3. Добавляем кнопки в контейнер
             pipeSupportsPulldownButton.AddPushButton(pipeSupportsByLengthButtonData);
-            pipeSupportsPulldownButton.AddPushButton(pipeSupportsByNumberButtonData);
-            
+            pipeSupportsPulldownButton.AddPushButton(pipeSupportCopyButtonData); // ← добавляем новую кнопку
+
             // ============================================
             // НОВАЯ КНОПКА "Краска" на панели ВК
             // ============================================
 
-            // Кнопка "Краска" - используем другое имя переменной
-            PushButtonData paintVKButtonData = new PushButtonData(  // ← переименовали
+            PushButtonData paintVKButtonData = new PushButtonData(
                 "PaintCalculator",
                 "Краска",
                 assemblyPath,
@@ -499,15 +501,12 @@ namespace PlugINPRO
                 LongDescription = "Выбирает систему трубопроводов и рассчитывает расход краски"
             };
 
-            vkPanel.AddItem(paintVKButtonData);  // ← обновили имя
-            
-
+            vkPanel.AddItem(paintVKButtonData);
 
             // ============================================
             // НОВАЯ КНОПКА-КОНТЕЙНЕР "Гидравлический расчёт" на панели ВК
             // ============================================
 
-            // Кнопка "Рассчитать систему" (первая подкоманда)
             PushButtonData hydraulicCalculateButtonData = new PushButtonData(
                 "HydraulicCalculate",
                 "Рассчитать\nсистему",
@@ -515,13 +514,12 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.VK.HydraulicCalculateCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),  // Потребуется добавить иконку
-                Image = LoadImage("PlugINPRO.Resources.VK.Hydraulic16.png"),        // Потребуется добавить иконку
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.Hydraulic16.png"),
                 ToolTip = "Гидравлический расчёт выбранной системы",
                 LongDescription = "Выполняет гидравлический расчёт трубопроводной системы"
             };
 
-            // Кнопка "Добавить параметры" (вторая подкоманда)
             PushButtonData hydraulicAddParamsButtonData = new PushButtonData(
                 "HydraulicAddParams",
                 "Добавить\nпараметры",
@@ -529,23 +527,20 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.VK.HydraulicAddParamsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.VK.HydraulicParams32.png"), // Потребуется добавить иконку
-                Image = LoadImage("PlugINPRO.Resources.VK.HydraulicParams16.png"),       // Потребуется добавить иконку
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.HydraulicParams32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.HydraulicParams16.png"),
                 ToolTip = "Добавить параметры для гидравлического расчёта",
                 LongDescription = "Добавляет в проект общие параметры, необходимые для выполнения гидравлического расчёта"
             };
 
-            // Создаём кнопку-контейнер (PulldownButton)
             PulldownButtonData hydraulicPullData = new PulldownButtonData("HydraulicTools", "Гидравлический\nрасчёт")
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),  // Основная иконка кнопки-контейнера
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),
                 ToolTip = "Инструменты гидравлического расчёта",
                 LongDescription = "Выполнение гидравлического расчёта и добавление необходимых параметров"
             };
 
             PulldownButton hydraulicPullButton = vkPanel.AddItem(hydraulicPullData) as PulldownButton;
-
-            // Добавляем подкоманды в выпадающий список
             hydraulicPullButton.AddPushButton(hydraulicCalculateButtonData);
             hydraulicPullButton.AddPushButton(hydraulicAddParamsButtonData);
 

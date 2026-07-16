@@ -71,7 +71,7 @@
     <Compile Include="Commands\VK\HydraulicCalculateCommand.cs" />
     <Compile Include="Commands\VK\HydraulicCalcViewModel.cs" />
     <Compile Include="Commands\VK\PaintCalculatorCommand.cs" />
-    <Compile Include="Commands\VK\PipeSupportsByNumberCommand.cs" />
+    <Compile Include="Commands\VK\PipeSupportCopyCommand.cs" />
     <Compile Include="Services\AR\BoolToVisibilityConverter.cs" />
     <Compile Include="Services\AR\CsvExporter.cs" />
     <Compile Include="Services\AR\DoorOffsetMode.cs" />
@@ -131,10 +131,6 @@
     <Compile Include="UI\Windows\VK\PaintInputDialog.xaml.cs">
       <DependentUpon>PaintInputDialog.xaml</DependentUpon>
     </Compile>
-    
-    <Compile Include="UI\Windows\VK\PipeFittingByNumberSettingsWindow.xaml.cs">
-      <DependentUpon>PipeFittingByNumberSettingsWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="UI\Windows\VK\PipeFittingByLengthSettingsWindow.xaml.cs">
       <DependentUpon>PipeFittingByLengthSettingsWindow.xaml</DependentUpon>
     </Compile>
@@ -154,6 +150,9 @@
     <Compile Include="Commands\Common\WorksetsCheckCommand.cs" />
     <Compile Include="UI\Windows\Common\WorksetsCheckWindow.xaml.cs">
       <DependentUpon>WorksetsCheckWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\VK\PipeSupportCopySettingsWindow.xaml.cs">
+      <DependentUpon>PipeSupportCopySettingsWindow.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -209,11 +208,6 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    
-    <Page Include="UI\Windows\VK\PipeFittingByNumberSettingsWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="UI\Windows\VK\PipeFittingByLengthSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -223,6 +217,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\Windows\Common\WorksetsCheckWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\VK\PipeSupportCopySettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

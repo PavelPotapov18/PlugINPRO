@@ -153,6 +153,35 @@ namespace PlugINPRO.Commands.TS
         }
 
         // ====================================================================
+        // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ДЛЯ ПРОЕЦИРОВАНИЯ НА СРЕДНЮЮ ВЫСОТУ
+        // ====================================================================
+
+        /// <summary>
+        /// Получает среднюю высоту (Z) между двумя точками
+        /// </summary>
+        private double GetAverageHeight(XYZ pointA, XYZ pointB)
+        {
+            return (pointA.Z + pointB.Z) / 2;
+        }
+
+        /// <summary>
+        /// Проецирует точку на указанную высоту
+        /// </summary>
+        private XYZ ProjectToHeight(XYZ point, double height)
+        {
+            return new XYZ(point.X, point.Y, height);
+        }
+
+        /// <summary>
+        /// Создает горизонтальную плоскость эскиза на указанной высоте
+        /// </summary>
+        private SketchPlane GetSketchPlaneWithProjection(Document doc, double height)
+        {
+            Plane plane = Plane.CreateByNormalAndOrigin(XYZ.BasisZ, new XYZ(0, 0, height));
+            return SketchPlane.Create(doc, plane);
+        }
+
+        // ====================================================================
         // РЕЖИМ 1: РАЗМЕР ПО ДЛИНЕ ТРУБЫ/ВОЗДУХОВОДА
         // ====================================================================
         private bool CreateDimensionForPipe(Document doc, Pipe pipe, View view, DimensionType dimensionType,
@@ -168,37 +197,99 @@ namespace PlugINPRO.Commands.TS
                 XYZ endPoint = pipeAxis.GetEndPoint(1);
                 if (startPoint.DistanceTo(endPoint) < 0.001) { errorMessage += $"\n- Труба {pipe.Id}: нулевая длина"; return false; }
 
-                XYZ direction = (endPoint - startPoint).Normalize();
-                XYZ up = XYZ.BasisZ;
-                if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
-                XYZ offsetDir = direction.CrossProduct(up).Normalize();
-                XYZ offset = offsetDir * settings.OffsetDistance;
-                Line dimensionLine = Line.CreateBound(startPoint + offset, endPoint + offset);
-                XYZ normal = direction.CrossProduct(offsetDir).Normalize();
-                string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
-
-                SketchPlane sketchPlane;
-                if (sketchPlaneCache.ContainsKey(normalKey)) sketchPlane = sketchPlaneCache[normalKey];
-                else { Plane plane = Plane.CreateByNormalAndOrigin(normal, startPoint); sketchPlane = SketchPlane.Create(doc, plane); sketchPlaneCache[normalKey] = sketchPlane; }
-
-                SketchPlane originalSketchPlane = view.SketchPlane;
-                view.SketchPlane = sketchPlane;
-
-                Reference startRef = null, endRef = null;
-                try { startRef = pipeAxis.GetEndPointReference(0); endRef = pipeAxis.GetEndPointReference(1); } catch { }
-                if (startRef == null || endRef == null)
+                // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль оси трубы, размер - по проекции на плоскость
+                if (settings.ProjectToFloor)
                 {
-                    List<Reference> endRefs = GetPipeEndReferences(pipe, startPoint, endPoint);
-                    if (endRefs == null || endRefs.Count < 2) { errorMessage += $"\n- Труба {pipe.Id}: не удалось получить References"; view.SketchPlane = originalSketchPlane; return false; }
-                    startRef = endRefs[0]; endRef = endRefs[1];
-                }
+                    XYZ direction = (endPoint - startPoint).Normalize();
+                    XYZ up = XYZ.BasisZ;
+                    if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
+                    XYZ offsetDir = direction.CrossProduct(up).Normalize();
+                    XYZ offset = offsetDir * settings.OffsetDistance;
 
-                ReferenceArray refArray = new ReferenceArray();
-                refArray.Append(startRef); refArray.Append(endRef);
-                Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                if (dimensionType != null) dimension.DimensionType = dimensionType;
-                view.SketchPlane = originalSketchPlane;
-                return true;
+                    // --- 1. ModelLine СТРОИМ ПО РЕАЛЬНОЙ ОСИ ТРУБЫ (как без галки) ---
+                    XYZ axisNormal = direction.CrossProduct(offsetDir).Normalize();
+                    string axisNormalKey = $"{Math.Round(axisNormal.X, 6)},{Math.Round(axisNormal.Y, 6)},{Math.Round(axisNormal.Z, 6)}";
+
+                    SketchPlane axisSketchPlane;
+                    if (sketchPlaneCache.ContainsKey(axisNormalKey))
+                        axisSketchPlane = sketchPlaneCache[axisNormalKey];
+                    else
+                    {
+                        Plane axisPlane = Plane.CreateByNormalAndOrigin(axisNormal, startPoint);
+                        axisSketchPlane = SketchPlane.Create(doc, axisPlane);
+                        sketchPlaneCache[axisNormalKey] = axisSketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = axisSketchPlane;
+
+                    Line modelLine = Line.CreateBound(startPoint, endPoint);
+                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane) as ModelLine;
+                    if (helperLine == null) { errorMessage += $"\n- Труба {pipe.Id}: не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                    // --- 2. РАЗМЕР - ОТНОСИТЕЛЬНО ПРОЕКЦИИ НА ГОРИЗОНТАЛЬНУЮ ПЛОСКОСТЬ ---
+                    double avgHeight = GetAverageHeight(startPoint, endPoint);
+                    XYZ startProj = ProjectToHeight(startPoint, avgHeight);
+                    XYZ endProj = ProjectToHeight(endPoint, avgHeight);
+
+                    SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                    view.SketchPlane = dimSketchPlane;
+
+                    XYZ dimStart = startProj + offset;
+                    XYZ dimEnd = endProj + offset;
+                    Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                    ReferenceArray refArray = new ReferenceArray();
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
+                else
+                {
+                    // Обычный режим БЕЗ галки (как раньше)
+                    XYZ direction = (endPoint - startPoint).Normalize();
+                    XYZ up = XYZ.BasisZ;
+                    if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
+                    XYZ offsetDir = direction.CrossProduct(up).Normalize();
+                    XYZ offset = offsetDir * settings.OffsetDistance;
+
+                    Line dimensionLine = Line.CreateBound(startPoint + offset, endPoint + offset);
+
+                    XYZ normal = direction.CrossProduct(offsetDir).Normalize();
+                    string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
+
+                    SketchPlane sketchPlane;
+                    if (sketchPlaneCache.ContainsKey(normalKey))
+                        sketchPlane = sketchPlaneCache[normalKey];
+                    else
+                    {
+                        Plane plane = Plane.CreateByNormalAndOrigin(normal, startPoint);
+                        sketchPlane = SketchPlane.Create(doc, plane);
+                        sketchPlaneCache[normalKey] = sketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = sketchPlane;
+
+                    Reference startRef = null, endRef = null;
+                    try { startRef = pipeAxis.GetEndPointReference(0); endRef = pipeAxis.GetEndPointReference(1); } catch { }
+                    if (startRef == null || endRef == null)
+                    {
+                        List<Reference> endRefs = GetPipeEndReferences(pipe, startPoint, endPoint);
+                        if (endRefs == null || endRefs.Count < 2) { errorMessage += $"\n- Труба {pipe.Id}: не удалось получить References"; view.SketchPlane = originalSketchPlane; return false; }
+                        startRef = endRefs[0]; endRef = endRefs[1];
+                    }
+
+                    ReferenceArray refArray = new ReferenceArray();
+                    refArray.Append(startRef); refArray.Append(endRef);
+                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
             }
             catch (Exception ex) { errorMessage += $"\n- Труба {pipe.Id}: {ex.Message}"; return false; }
         }
@@ -216,37 +307,99 @@ namespace PlugINPRO.Commands.TS
                 XYZ endPoint = ductAxis.GetEndPoint(1);
                 if (startPoint.DistanceTo(endPoint) < 0.001) { errorMessage += $"\n- Воздуховод {duct.Id}: нулевая длина"; return false; }
 
-                XYZ direction = (endPoint - startPoint).Normalize();
-                XYZ up = XYZ.BasisZ;
-                if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
-                XYZ offsetDir = direction.CrossProduct(up).Normalize();
-                XYZ offset = offsetDir * settings.OffsetDistance;
-                Line dimensionLine = Line.CreateBound(startPoint + offset, endPoint + offset);
-                XYZ normal = direction.CrossProduct(offsetDir).Normalize();
-                string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
-
-                SketchPlane sketchPlane;
-                if (sketchPlaneCache.ContainsKey(normalKey)) sketchPlane = sketchPlaneCache[normalKey];
-                else { Plane plane = Plane.CreateByNormalAndOrigin(normal, startPoint); sketchPlane = SketchPlane.Create(doc, plane); sketchPlaneCache[normalKey] = sketchPlane; }
-
-                SketchPlane originalSketchPlane = view.SketchPlane;
-                view.SketchPlane = sketchPlane;
-
-                Reference startRef = null, endRef = null;
-                try { startRef = ductAxis.GetEndPointReference(0); endRef = ductAxis.GetEndPointReference(1); } catch { }
-                if (startRef == null || endRef == null)
+                // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль оси воздуховода, размер - по проекции на плоскость
+                if (settings.ProjectToFloor)
                 {
-                    List<Reference> endRefs = GetDuctEndReferences(duct, startPoint, endPoint);
-                    if (endRefs == null || endRefs.Count < 2) { errorMessage += $"\n- Воздуховод {duct.Id}: не удалось получить References"; view.SketchPlane = originalSketchPlane; return false; }
-                    startRef = endRefs[0]; endRef = endRefs[1];
-                }
+                    XYZ direction = (endPoint - startPoint).Normalize();
+                    XYZ up = XYZ.BasisZ;
+                    if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
+                    XYZ offsetDir = direction.CrossProduct(up).Normalize();
+                    XYZ offset = offsetDir * settings.OffsetDistance;
 
-                ReferenceArray refArray = new ReferenceArray();
-                refArray.Append(startRef); refArray.Append(endRef);
-                Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                if (dimensionType != null) dimension.DimensionType = dimensionType;
-                view.SketchPlane = originalSketchPlane;
-                return true;
+                    // --- 1. ModelLine СТРОИМ ПО РЕАЛЬНОЙ ОСИ ВОЗДУХОВОДА (как без галки) ---
+                    XYZ axisNormal = direction.CrossProduct(offsetDir).Normalize();
+                    string axisNormalKey = $"{Math.Round(axisNormal.X, 6)},{Math.Round(axisNormal.Y, 6)},{Math.Round(axisNormal.Z, 6)}";
+
+                    SketchPlane axisSketchPlane;
+                    if (sketchPlaneCache.ContainsKey(axisNormalKey))
+                        axisSketchPlane = sketchPlaneCache[axisNormalKey];
+                    else
+                    {
+                        Plane axisPlane = Plane.CreateByNormalAndOrigin(axisNormal, startPoint);
+                        axisSketchPlane = SketchPlane.Create(doc, axisPlane);
+                        sketchPlaneCache[axisNormalKey] = axisSketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = axisSketchPlane;
+
+                    Line modelLine = Line.CreateBound(startPoint, endPoint);
+                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane) as ModelLine;
+                    if (helperLine == null) { errorMessage += $"\n- Воздуховод {duct.Id}: не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                    // --- 2. РАЗМЕР - ОТНОСИТЕЛЬНО ПРОЕКЦИИ НА ГОРИЗОНТАЛЬНУЮ ПЛОСКОСТЬ ---
+                    double avgHeight = GetAverageHeight(startPoint, endPoint);
+                    XYZ startProj = ProjectToHeight(startPoint, avgHeight);
+                    XYZ endProj = ProjectToHeight(endPoint, avgHeight);
+
+                    SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                    view.SketchPlane = dimSketchPlane;
+
+                    XYZ dimStart = startProj + offset;
+                    XYZ dimEnd = endProj + offset;
+                    Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                    ReferenceArray refArray = new ReferenceArray();
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
+                else
+                {
+                    // Обычный режим БЕЗ галки
+                    XYZ direction = (endPoint - startPoint).Normalize();
+                    XYZ up = XYZ.BasisZ;
+                    if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
+                    XYZ offsetDir = direction.CrossProduct(up).Normalize();
+                    XYZ offset = offsetDir * settings.OffsetDistance;
+
+                    Line dimensionLine = Line.CreateBound(startPoint + offset, endPoint + offset);
+
+                    XYZ normal = direction.CrossProduct(offsetDir).Normalize();
+                    string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
+
+                    SketchPlane sketchPlane;
+                    if (sketchPlaneCache.ContainsKey(normalKey))
+                        sketchPlane = sketchPlaneCache[normalKey];
+                    else
+                    {
+                        Plane plane = Plane.CreateByNormalAndOrigin(normal, startPoint);
+                        sketchPlane = SketchPlane.Create(doc, plane);
+                        sketchPlaneCache[normalKey] = sketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = sketchPlane;
+
+                    Reference startRef = null, endRef = null;
+                    try { startRef = ductAxis.GetEndPointReference(0); endRef = ductAxis.GetEndPointReference(1); } catch { }
+                    if (startRef == null || endRef == null)
+                    {
+                        List<Reference> endRefs = GetDuctEndReferences(duct, startPoint, endPoint);
+                        if (endRefs == null || endRefs.Count < 2) { errorMessage += $"\n- Воздуховод {duct.Id}: не удалось получить References"; view.SketchPlane = originalSketchPlane; return false; }
+                        startRef = endRefs[0]; endRef = endRefs[1];
+                    }
+
+                    ReferenceArray refArray = new ReferenceArray();
+                    refArray.Append(startRef); refArray.Append(endRef);
+                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
             }
             catch (Exception ex) { errorMessage += $"\n- Воздуховод {duct.Id}: {ex.Message}"; return false; }
         }
@@ -278,7 +431,8 @@ namespace PlugINPRO.Commands.TS
                         foreach (Connector connectedConn in conn.AllRefs)
                         {
                             Element connectedElement = connectedConn.Owner;
-                            if (connectedElement is FamilyInstance fitting && fitting.Category != null && fitting.Category.Name == "Pipe Fittings")
+                            if (connectedElement is FamilyInstance fitting && fitting.Category != null &&
+                                fitting.Category.Id.IntegerValue == (int)BuiltInCategory.OST_PipeFitting)
                             { startFitting = fitting; break; }
                         }
                     }
@@ -287,7 +441,8 @@ namespace PlugINPRO.Commands.TS
                         foreach (Connector connectedConn in conn.AllRefs)
                         {
                             Element connectedElement = connectedConn.Owner;
-                            if (connectedElement is FamilyInstance fitting && fitting.Category != null && fitting.Category.Name == "Pipe Fittings")
+                            if (connectedElement is FamilyInstance fitting && fitting.Category != null &&
+                                fitting.Category.Id.IntegerValue == (int)BuiltInCategory.OST_PipeFitting)
                             { endFitting = fitting; break; }
                         }
                     }
@@ -297,7 +452,6 @@ namespace PlugINPRO.Commands.TS
                 { return CreateDimensionForPipe(doc, pipe, view, dimensionType, settings, sketchPlaneCache, ref errorMessage); }
 
                 XYZ pointA = pipeStart, pointB = pipeEnd;
-                string sizeDescription = "";
 
                 if (startFitting != null && endFitting != null)
                 {
@@ -322,27 +476,94 @@ namespace PlugINPRO.Commands.TS
                 double distance = pointA.DistanceTo(pointB);
                 if (distance < 0.001) { errorMessage += $"\n- Труба {pipe.Id}: ⚠️ точки совпадают"; return false; }
 
-                XYZ direction = (pipeEnd - pipeStart).Normalize();
-                XYZ up = XYZ.BasisZ;
-                if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
-                XYZ offsetDir = direction.CrossProduct(up).Normalize();
-                XYZ offset = offsetDir * settings.OffsetDistance;
-                Line modelLine = Line.CreateBound(pointA, pointB);
-                XYZ normal = direction.CrossProduct(offsetDir).Normalize();
-                Plane plane = Plane.CreateByNormalAndOrigin(normal, pointA);
-                SketchPlane sketchPlane = SketchPlane.Create(doc, plane);
-                SketchPlane originalSketchPlane = view.SketchPlane;
-                view.SketchPlane = sketchPlane;
-                ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
-                if (helperLine == null) { errorMessage += $"\n- Труба {pipe.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
-                Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
-                ReferenceArray refArray = new ReferenceArray();
-                refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
-                refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
-                Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                if (dimensionType != null) dimension.DimensionType = dimensionType;
-                view.SketchPlane = originalSketchPlane;
-                return true;
+                // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль реальной линии между точками, размер - по проекции на плоскость
+                if (settings.ProjectToFloor)
+                {
+                    XYZ direction = (pipeEnd - pipeStart).Normalize();
+                    XYZ up = XYZ.BasisZ;
+                    if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
+                    XYZ offsetDir = direction.CrossProduct(up).Normalize();
+                    XYZ offset = offsetDir * settings.OffsetDistance;
+
+                    // --- 1. ModelLine СТРОИМ ПО РЕАЛЬНЫМ ТОЧКАМ (как без галки) ---
+                    XYZ axisNormal = direction.CrossProduct(offsetDir).Normalize();
+                    string axisNormalKey = $"{Math.Round(axisNormal.X, 6)},{Math.Round(axisNormal.Y, 6)},{Math.Round(axisNormal.Z, 6)}";
+
+                    SketchPlane axisSketchPlane;
+                    if (sketchPlaneCache.ContainsKey(axisNormalKey))
+                        axisSketchPlane = sketchPlaneCache[axisNormalKey];
+                    else
+                    {
+                        Plane axisPlane = Plane.CreateByNormalAndOrigin(axisNormal, pointA);
+                        axisSketchPlane = SketchPlane.Create(doc, axisPlane);
+                        sketchPlaneCache[axisNormalKey] = axisSketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = axisSketchPlane;
+
+                    Line modelLine = Line.CreateBound(pointA, pointB);
+                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane) as ModelLine;
+                    if (helperLine == null) { errorMessage += $"\n- Труба {pipe.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                    // --- 2. РАЗМЕР - ОТНОСИТЕЛЬНО ПРОЕКЦИИ НА ГОРИЗОНТАЛЬНУЮ ПЛОСКОСТЬ ---
+                    double avgHeight = GetAverageHeight(pointA, pointB);
+                    XYZ pointAProj = ProjectToHeight(pointA, avgHeight);
+                    XYZ pointBProj = ProjectToHeight(pointB, avgHeight);
+
+                    SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                    view.SketchPlane = dimSketchPlane;
+
+                    XYZ dimStart = pointAProj + offset;
+                    XYZ dimEnd = pointBProj + offset;
+                    Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                    ReferenceArray refArray = new ReferenceArray();
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
+                else
+                {
+                    // Обычный режим БЕЗ галки
+                    XYZ direction = (pipeEnd - pipeStart).Normalize();
+                    XYZ up = XYZ.BasisZ;
+                    if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
+                    XYZ offsetDir = direction.CrossProduct(up).Normalize();
+                    XYZ offset = offsetDir * settings.OffsetDistance;
+
+                    Line modelLine = Line.CreateBound(pointA, pointB);
+                    Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
+
+                    XYZ normal = direction.CrossProduct(offsetDir).Normalize();
+                    string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
+
+                    SketchPlane sketchPlane;
+                    if (sketchPlaneCache.ContainsKey(normalKey))
+                        sketchPlane = sketchPlaneCache[normalKey];
+                    else
+                    {
+                        Plane plane = Plane.CreateByNormalAndOrigin(normal, pointA);
+                        sketchPlane = SketchPlane.Create(doc, plane);
+                        sketchPlaneCache[normalKey] = sketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = sketchPlane;
+                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
+                    if (helperLine == null) { errorMessage += $"\n- Труба {pipe.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                    ReferenceArray refArray = new ReferenceArray();
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
             }
             catch (Exception ex) { errorMessage += $"\n- Труба {pipe.Id}: 💥 {ex.Message}"; return false; }
         }
@@ -371,7 +592,8 @@ namespace PlugINPRO.Commands.TS
                         foreach (Connector connectedConn in conn.AllRefs)
                         {
                             Element connectedElement = connectedConn.Owner;
-                            if (connectedElement is FamilyInstance fitting && fitting.Category != null && fitting.Category.Name == "Duct Fittings")
+                            if (connectedElement is FamilyInstance fitting && fitting.Category != null &&
+                                fitting.Category.Id.IntegerValue == (int)BuiltInCategory.OST_DuctFitting)
                             { startFitting = fitting; break; }
                         }
                     }
@@ -380,7 +602,8 @@ namespace PlugINPRO.Commands.TS
                         foreach (Connector connectedConn in conn.AllRefs)
                         {
                             Element connectedElement = connectedConn.Owner;
-                            if (connectedElement is FamilyInstance fitting && fitting.Category != null && fitting.Category.Name == "Duct Fittings")
+                            if (connectedElement is FamilyInstance fitting && fitting.Category != null &&
+                                fitting.Category.Id.IntegerValue == (int)BuiltInCategory.OST_DuctFitting)
                             { endFitting = fitting; break; }
                         }
                     }
@@ -410,27 +633,94 @@ namespace PlugINPRO.Commands.TS
                     pointA = ductStart; pointB = center;
                 }
 
-                XYZ direction = (ductEnd - ductStart).Normalize();
-                XYZ up = XYZ.BasisZ;
-                if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
-                XYZ offsetDir = direction.CrossProduct(up).Normalize();
-                XYZ offset = offsetDir * settings.OffsetDistance;
-                Line modelLine = Line.CreateBound(pointA, pointB);
-                XYZ normal = direction.CrossProduct(offsetDir).Normalize();
-                Plane plane = Plane.CreateByNormalAndOrigin(normal, pointA);
-                SketchPlane sketchPlane = SketchPlane.Create(doc, plane);
-                SketchPlane originalSketchPlane = view.SketchPlane;
-                view.SketchPlane = sketchPlane;
-                ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
-                if (helperLine == null) { errorMessage += $"\n- Воздуховод {duct.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
-                Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
-                ReferenceArray refArray = new ReferenceArray();
-                refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
-                refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
-                Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                if (dimensionType != null) dimension.DimensionType = dimensionType;
-                view.SketchPlane = originalSketchPlane;
-                return true;
+                // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль реальной линии между точками, размер - по проекции на плоскость
+                if (settings.ProjectToFloor)
+                {
+                    XYZ direction = (ductEnd - ductStart).Normalize();
+                    XYZ up = XYZ.BasisZ;
+                    if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
+                    XYZ offsetDir = direction.CrossProduct(up).Normalize();
+                    XYZ offset = offsetDir * settings.OffsetDistance;
+
+                    // --- 1. ModelLine СТРОИМ ПО РЕАЛЬНЫМ ТОЧКАМ (как без галки) ---
+                    XYZ axisNormal = direction.CrossProduct(offsetDir).Normalize();
+                    string axisNormalKey = $"{Math.Round(axisNormal.X, 6)},{Math.Round(axisNormal.Y, 6)},{Math.Round(axisNormal.Z, 6)}";
+
+                    SketchPlane axisSketchPlane;
+                    if (sketchPlaneCache.ContainsKey(axisNormalKey))
+                        axisSketchPlane = sketchPlaneCache[axisNormalKey];
+                    else
+                    {
+                        Plane axisPlane = Plane.CreateByNormalAndOrigin(axisNormal, pointA);
+                        axisSketchPlane = SketchPlane.Create(doc, axisPlane);
+                        sketchPlaneCache[axisNormalKey] = axisSketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = axisSketchPlane;
+
+                    Line modelLine = Line.CreateBound(pointA, pointB);
+                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane) as ModelLine;
+                    if (helperLine == null) { errorMessage += $"\n- Воздуховод {duct.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                    // --- 2. РАЗМЕР - ОТНОСИТЕЛЬНО ПРОЕКЦИИ НА ГОРИЗОНТАЛЬНУЮ ПЛОСКОСТЬ ---
+                    double avgHeight = GetAverageHeight(pointA, pointB);
+                    XYZ pointAProj = ProjectToHeight(pointA, avgHeight);
+                    XYZ pointBProj = ProjectToHeight(pointB, avgHeight);
+
+                    SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                    view.SketchPlane = dimSketchPlane;
+
+                    XYZ dimStart = pointAProj + offset;
+                    XYZ dimEnd = pointBProj + offset;
+                    Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                    ReferenceArray refArray = new ReferenceArray();
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
+                else
+                {
+                    // Обычный режим БЕЗ галки
+                    XYZ direction = (ductEnd - ductStart).Normalize();
+                    XYZ up = XYZ.BasisZ;
+                    if (Math.Abs(direction.DotProduct(up)) > 0.99) up = XYZ.BasisX;
+                    XYZ offsetDir = direction.CrossProduct(up).Normalize();
+                    XYZ offset = offsetDir * settings.OffsetDistance;
+
+                    Line modelLine = Line.CreateBound(pointA, pointB);
+                    Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
+
+                    XYZ normal = direction.CrossProduct(offsetDir).Normalize();
+                    string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
+
+                    SketchPlane sketchPlane;
+                    if (sketchPlaneCache.ContainsKey(normalKey))
+                        sketchPlane = sketchPlaneCache[normalKey];
+                    else
+                    {
+                        Plane plane = Plane.CreateByNormalAndOrigin(normal, pointA);
+                        sketchPlane = SketchPlane.Create(doc, plane);
+                        sketchPlaneCache[normalKey] = sketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = sketchPlane;
+                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
+                    if (helperLine == null) { errorMessage += $"\n- Воздуховод {duct.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                    ReferenceArray refArray = new ReferenceArray();
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
             }
             catch (Exception ex) { errorMessage += $"\n- Воздуховод {duct.Id}: 💥 {ex.Message}"; return false; }
         }
@@ -454,7 +744,6 @@ namespace PlugINPRO.Commands.TS
                 XYZ pipeDir = (pipeEnd - pipeStart).Normalize();
                 double pipeLength = pipeStart.DistanceTo(pipeEnd);
 
-                // Находим опоры на оси трубы
                 List<FamilyInstance> supportsOnPipe = new List<FamilyInstance>();
                 foreach (FamilyInstance fitting in selectedFittings)
                 {
@@ -477,7 +766,6 @@ namespace PlugINPRO.Commands.TS
                     return (center - pipeStart).DotProduct(pipeDir);
                 }).ToList();
 
-                // Точки: начало трубы + опоры + конец трубы
                 List<XYZ> points = new List<XYZ>();
                 points.Add(pipeStart);
                 foreach (var support in sortedSupports)
@@ -490,34 +778,107 @@ namespace PlugINPRO.Commands.TS
 
                 if (points.Count < 2) return false;
 
-                // Создаем размеры
                 XYZ up = XYZ.BasisZ;
                 if (Math.Abs(pipeDir.DotProduct(up)) > 0.99) up = XYZ.BasisX;
                 XYZ offsetDir = pipeDir.CrossProduct(up).Normalize();
                 XYZ offset = offsetDir * settings.OffsetDistance;
-                XYZ normal = pipeDir.CrossProduct(offsetDir).Normalize();
-                Plane plane = Plane.CreateByNormalAndOrigin(normal, points[0]);
-                SketchPlane sketchPlane = SketchPlane.Create(doc, plane);
-                SketchPlane originalSketchPlane = view.SketchPlane;
-                view.SketchPlane = sketchPlane;
 
-                for (int i = 0; i < points.Count - 1; i++)
+                // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль реальной оси, размер - по проекции на плоскость
+                if (settings.ProjectToFloor)
                 {
-                    XYZ pointA = points[i];
-                    XYZ pointB = points[i + 1];
-                    if (pointA.DistanceTo(pointB) < 0.001) continue;
-                    Line modelLine = Line.CreateBound(pointA, pointB);
-                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
-                    if (helperLine == null) continue;
-                    Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
-                    ReferenceArray refArray = new ReferenceArray();
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
-                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        XYZ pointA = points[i];
+                        XYZ pointB = points[i + 1];
+                        if (pointA.DistanceTo(pointB) < 0.001) continue;
+
+                        // --- 1. Своя плоскость для каждого сегмента (как без галки) ---
+                        XYZ axisNormal = pipeDir.CrossProduct(offsetDir).Normalize();
+                        string axisNormalKey = $"{Math.Round(axisNormal.X, 6)},{Math.Round(axisNormal.Y, 6)},{Math.Round(axisNormal.Z, 6)}";
+
+                        SketchPlane axisSketchPlane;
+                        if (sketchPlaneCache.ContainsKey(axisNormalKey))
+                            axisSketchPlane = sketchPlaneCache[axisNormalKey];
+                        else
+                        {
+                            Plane axisPlane = Plane.CreateByNormalAndOrigin(axisNormal, pointA);
+                            axisSketchPlane = SketchPlane.Create(doc, axisPlane);
+                            sketchPlaneCache[axisNormalKey] = axisSketchPlane;
+                        }
+
+                        SketchPlane originalSketchPlane = view.SketchPlane;
+                        view.SketchPlane = axisSketchPlane;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane) as ModelLine;
+                        if (helperLine == null)
+                        {
+                            view.SketchPlane = originalSketchPlane;
+                            continue;
+                        }
+
+                        // --- 2. РАЗМЕР ПО ПРОЕКЦИИ НА ГОРИЗОНТАЛЬНУЮ ПЛОСКОСТЬ ---
+                        double avgHeight = GetAverageHeight(pointA, pointB);
+                        XYZ pointAProj = ProjectToHeight(pointA, avgHeight);
+                        XYZ pointBProj = ProjectToHeight(pointB, avgHeight);
+
+                        SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                        view.SketchPlane = dimSketchPlane;
+
+                        XYZ dimStart = pointAProj + offset;
+                        XYZ dimEnd = pointBProj + offset;
+                        Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+
+                        view.SketchPlane = originalSketchPlane;
+                    }
+                    return true;
                 }
-                view.SketchPlane = originalSketchPlane;
-                return true;
+                else
+                {
+                    // Обычный режим БЕЗ галки
+                    XYZ normal = pipeDir.CrossProduct(offsetDir).Normalize();
+                    string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
+
+                    SketchPlane sketchPlane;
+                    if (sketchPlaneCache.ContainsKey(normalKey))
+                        sketchPlane = sketchPlaneCache[normalKey];
+                    else
+                    {
+                        Plane plane = Plane.CreateByNormalAndOrigin(normal, points[0]);
+                        sketchPlane = SketchPlane.Create(doc, plane);
+                        sketchPlaneCache[normalKey] = sketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = sketchPlane;
+
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        XYZ pointA = points[i];
+                        XYZ pointB = points[i + 1];
+                        if (pointA.DistanceTo(pointB) < 0.001) continue;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
+                        if (helperLine == null) continue;
+
+                        Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    }
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
             }
             catch (Exception ex) { errorMessage += $"\n- Труба {pipe.Id}: 💥 {ex.Message}"; return false; }
         }
@@ -576,35 +937,107 @@ namespace PlugINPRO.Commands.TS
                 if (Math.Abs(ductDir.DotProduct(up)) > 0.99) up = XYZ.BasisX;
                 XYZ offsetDir = ductDir.CrossProduct(up).Normalize();
                 XYZ offset = offsetDir * settings.OffsetDistance;
-                XYZ normal = ductDir.CrossProduct(offsetDir).Normalize();
-                Plane plane = Plane.CreateByNormalAndOrigin(normal, points[0]);
-                SketchPlane sketchPlane = SketchPlane.Create(doc, plane);
-                SketchPlane originalSketchPlane = view.SketchPlane;
-                view.SketchPlane = sketchPlane;
 
-                for (int i = 0; i < points.Count - 1; i++)
+                // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль реальной оси, размер - по проекции на плоскость
+                if (settings.ProjectToFloor)
                 {
-                    XYZ pointA = points[i];
-                    XYZ pointB = points[i + 1];
-                    if (pointA.DistanceTo(pointB) < 0.001) continue;
-                    Line modelLine = Line.CreateBound(pointA, pointB);
-                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
-                    if (helperLine == null) continue;
-                    Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
-                    ReferenceArray refArray = new ReferenceArray();
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
-                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        XYZ pointA = points[i];
+                        XYZ pointB = points[i + 1];
+                        if (pointA.DistanceTo(pointB) < 0.001) continue;
+
+                        XYZ axisNormal = ductDir.CrossProduct(offsetDir).Normalize();
+                        string axisNormalKey = $"{Math.Round(axisNormal.X, 6)},{Math.Round(axisNormal.Y, 6)},{Math.Round(axisNormal.Z, 6)}";
+
+                        SketchPlane axisSketchPlane;
+                        if (sketchPlaneCache.ContainsKey(axisNormalKey))
+                            axisSketchPlane = sketchPlaneCache[axisNormalKey];
+                        else
+                        {
+                            Plane axisPlane = Plane.CreateByNormalAndOrigin(axisNormal, pointA);
+                            axisSketchPlane = SketchPlane.Create(doc, axisPlane);
+                            sketchPlaneCache[axisNormalKey] = axisSketchPlane;
+                        }
+
+                        SketchPlane originalSketchPlane = view.SketchPlane;
+                        view.SketchPlane = axisSketchPlane;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane) as ModelLine;
+                        if (helperLine == null)
+                        {
+                            view.SketchPlane = originalSketchPlane;
+                            continue;
+                        }
+
+                        double avgHeight = GetAverageHeight(pointA, pointB);
+                        XYZ pointAProj = ProjectToHeight(pointA, avgHeight);
+                        XYZ pointBProj = ProjectToHeight(pointB, avgHeight);
+
+                        SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                        view.SketchPlane = dimSketchPlane;
+
+                        XYZ dimStart = pointAProj + offset;
+                        XYZ dimEnd = pointBProj + offset;
+                        Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+
+                        view.SketchPlane = originalSketchPlane;
+                    }
+                    return true;
                 }
-                view.SketchPlane = originalSketchPlane;
-                return true;
+                else
+                {
+                    // Обычный режим БЕЗ галки
+                    XYZ normal = ductDir.CrossProduct(offsetDir).Normalize();
+                    string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
+
+                    SketchPlane sketchPlane;
+                    if (sketchPlaneCache.ContainsKey(normalKey))
+                        sketchPlane = sketchPlaneCache[normalKey];
+                    else
+                    {
+                        Plane plane = Plane.CreateByNormalAndOrigin(normal, points[0]);
+                        sketchPlane = SketchPlane.Create(doc, plane);
+                        sketchPlaneCache[normalKey] = sketchPlane;
+                    }
+
+                    SketchPlane originalSketchPlane = view.SketchPlane;
+                    view.SketchPlane = sketchPlane;
+
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        XYZ pointA = points[i];
+                        XYZ pointB = points[i + 1];
+                        if (pointA.DistanceTo(pointB) < 0.001) continue;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
+                        if (helperLine == null) continue;
+
+                        Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    }
+                    view.SketchPlane = originalSketchPlane;
+                    return true;
+                }
             }
             catch (Exception ex) { errorMessage += $"\n- Воздуховод {duct.Id}: 💥 {ex.Message}"; return false; }
         }
 
         // ====================================================================
-        // РЕЖИМ 4: РАЗМЕРЫ МЕЖДУ ОПОРАМИ ДО ФИТИНГОВ (ИСПРАВЛЕННЫЙ)
+        // РЕЖИМ 4: РАЗМЕРЫ МЕЖДУ ОПОРАМИ ДО ФИТИНГОВ
         // ====================================================================
         private bool CreateDimensionBetweenSupportsToFittingsForPipe(Document doc, Pipe pipe, View view, DimensionType dimensionType,
             DimensionSettingsData settings, List<FamilyInstance> selectedFittings, Dictionary<string, SketchPlane> sketchPlaneCache, ref string errorMessage)
@@ -622,7 +1055,6 @@ namespace PlugINPRO.Commands.TS
                 XYZ pipeDir = (pipeEnd - pipeStart).Normalize();
                 double pipeLength = pipeStart.DistanceTo(pipeEnd);
 
-                // Находим опоры на оси трубы
                 List<FamilyInstance> supportsOnPipe = new List<FamilyInstance>();
                 foreach (FamilyInstance fitting in selectedFittings)
                 {
@@ -635,7 +1067,6 @@ namespace PlugINPRO.Commands.TS
                         supportsOnPipe.Add(fitting);
                 }
 
-                // НАХОДИМ КОНЦЕВЫЕ ФИТИНГИ (всегда ищем, даже если есть опоры)
                 ConnectorManager connectorManager = pipe.ConnectorManager;
                 FamilyInstance startFitting = null, endFitting = null;
                 if (connectorManager != null)
@@ -647,7 +1078,8 @@ namespace PlugINPRO.Commands.TS
                             foreach (Connector connectedConn in conn.AllRefs)
                             {
                                 Element connectedElement = connectedConn.Owner;
-                                if (connectedElement is FamilyInstance fitting && fitting.Category != null && fitting.Category.Name == "Pipe Fittings")
+                                if (connectedElement is FamilyInstance fitting && fitting.Category != null &&
+                                    fitting.Category.Id.IntegerValue == (int)BuiltInCategory.OST_PipeFitting)
                                 { startFitting = fitting; break; }
                             }
                         }
@@ -656,27 +1088,24 @@ namespace PlugINPRO.Commands.TS
                             foreach (Connector connectedConn in conn.AllRefs)
                             {
                                 Element connectedElement = connectedConn.Owner;
-                                if (connectedElement is FamilyInstance fitting && fitting.Category != null && fitting.Category.Name == "Pipe Fittings")
+                                if (connectedElement is FamilyInstance fitting && fitting.Category != null &&
+                                    fitting.Category.Id.IntegerValue == (int)BuiltInCategory.OST_PipeFitting)
                                 { endFitting = fitting; break; }
                             }
                         }
                     }
                 }
 
-                // ================================================================
-                // ЕСЛИ ОПОР НЕТ - ДЕЛАЕМ РАЗМЕР МЕЖДУ ЦЕНТРАМИ ФИТИНГОВ (как в режиме 2)
-                // ================================================================
+                // ЕСЛИ ОПОР НЕТ - ДЕЛАЕМ РАЗМЕР МЕЖДУ ЦЕНТРАМИ ФИТИНГОВ
                 if (supportsOnPipe.Count == 0)
                 {
                     errorMessage += $"\n- Труба {pipe.Id}: ℹ️ опоры не найдены, создаем размер между центрами фитингов";
 
-                    // Если нет ни одного фитинга - просто размер по трубе
                     if (startFitting == null && endFitting == null)
                     {
                         return CreateDimensionForPipe(doc, pipe, view, dimensionType, settings, sketchPlaneCache, ref errorMessage);
                     }
 
-                    // Определяем точки для размера
                     XYZ pointA = pipeStart;
                     XYZ pointB = pipeEnd;
 
@@ -715,7 +1144,6 @@ namespace PlugINPRO.Commands.TS
                         pointB = center;
                     }
 
-                    // Создаем размер между точками
                     double distance = pointA.DistanceTo(pointB);
                     if (distance < 0.001) { errorMessage += $"\n- Труба {pipe.Id}: ⚠️ точки совпадают"; return false; }
 
@@ -723,27 +1151,85 @@ namespace PlugINPRO.Commands.TS
                     if (Math.Abs(pipeDir.DotProduct(up)) > 0.99) up = XYZ.BasisX;
                     XYZ offsetDir = pipeDir.CrossProduct(up).Normalize();
                     XYZ offset = offsetDir * settings.OffsetDistance;
-                    Line modelLine = Line.CreateBound(pointA, pointB);
-                    XYZ normal = pipeDir.CrossProduct(offsetDir).Normalize();
-                    Plane plane = Plane.CreateByNormalAndOrigin(normal, pointA);
-                    SketchPlane sketchPlane = SketchPlane.Create(doc, plane);
-                    SketchPlane originalSketchPlane = view.SketchPlane;
-                    view.SketchPlane = sketchPlane;
-                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
-                    if (helperLine == null) { errorMessage += $"\n- Труба {pipe.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
-                    Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
-                    ReferenceArray refArray = new ReferenceArray();
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
-                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                    if (dimensionType != null) dimension.DimensionType = dimensionType;
-                    view.SketchPlane = originalSketchPlane;
-                    return true;
+
+                    // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль реальной линии, размер - по проекции на плоскость
+                    if (settings.ProjectToFloor)
+                    {
+                        // --- 1. ModelLine ПО РЕАЛЬНЫМ ТОЧКАМ (как без галки) ---
+                        XYZ axisNormal = pipeDir.CrossProduct(offsetDir).Normalize();
+                        string axisNormalKey = $"{Math.Round(axisNormal.X, 6)},{Math.Round(axisNormal.Y, 6)},{Math.Round(axisNormal.Z, 6)}";
+
+                        SketchPlane axisSketchPlane;
+                        if (sketchPlaneCache.ContainsKey(axisNormalKey))
+                            axisSketchPlane = sketchPlaneCache[axisNormalKey];
+                        else
+                        {
+                            Plane axisPlane = Plane.CreateByNormalAndOrigin(axisNormal, pointA);
+                            axisSketchPlane = SketchPlane.Create(doc, axisPlane);
+                            sketchPlaneCache[axisNormalKey] = axisSketchPlane;
+                        }
+
+                        SketchPlane originalSketchPlane = view.SketchPlane;
+                        view.SketchPlane = axisSketchPlane;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane) as ModelLine;
+                        if (helperLine == null) { errorMessage += $"\n- Труба {pipe.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                        // --- 2. РАЗМЕР - ОТНОСИТЕЛЬНО ПРОЕКЦИИ НА ГОРИЗОНТАЛЬНУЮ ПЛОСКОСТЬ ---
+                        double avgHeight = GetAverageHeight(pointA, pointB);
+                        XYZ pointAProj = ProjectToHeight(pointA, avgHeight);
+                        XYZ pointBProj = ProjectToHeight(pointB, avgHeight);
+
+                        SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                        view.SketchPlane = dimSketchPlane;
+
+                        XYZ dimStart = pointAProj + offset;
+                        XYZ dimEnd = pointBProj + offset;
+                        Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+                        view.SketchPlane = originalSketchPlane;
+                        return true;
+                    }
+                    else
+                    {
+                        // Обычный режим БЕЗ галки
+                        XYZ normal = pipeDir.CrossProduct(offsetDir).Normalize();
+                        string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
+
+                        SketchPlane sketchPlane;
+                        if (sketchPlaneCache.ContainsKey(normalKey))
+                            sketchPlane = sketchPlaneCache[normalKey];
+                        else
+                        {
+                            Plane plane = Plane.CreateByNormalAndOrigin(normal, pointA);
+                            sketchPlane = SketchPlane.Create(doc, plane);
+                            sketchPlaneCache[normalKey] = sketchPlane;
+                        }
+
+                        SketchPlane originalSketchPlane = view.SketchPlane;
+                        view.SketchPlane = sketchPlane;
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
+                        if (helperLine == null) { errorMessage += $"\n- Труба {pipe.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                        Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+                        view.SketchPlane = originalSketchPlane;
+                        return true;
+                    }
                 }
 
-                // ================================================================
-                // ЕСЛИ ОПОРЫ ЕСТЬ - ДЕЛАЕМ РАЗМЕРЫ МЕЖДУ ОПОРАМИ И ФИТИНГАМИ
-                // ================================================================
+                // ЕСЛИ ОПОРЫ ЕСТЬ
                 var sortedSupports = supportsOnPipe.OrderBy(s =>
                 {
                     XYZ center = GetFittingCenter(s);
@@ -751,7 +1237,6 @@ namespace PlugINPRO.Commands.TS
                     return (center - pipeStart).DotProduct(pipeDir);
                 }).ToList();
 
-                // Точки: начало (фитинг или конец трубы) + опоры + конец (фитинг или конец трубы)
                 List<XYZ> points = new List<XYZ>();
 
                 if (startFitting != null)
@@ -781,29 +1266,103 @@ namespace PlugINPRO.Commands.TS
                 if (Math.Abs(pipeDir.DotProduct(up2)) > 0.99) up2 = XYZ.BasisX;
                 XYZ offsetDir2 = pipeDir.CrossProduct(up2).Normalize();
                 XYZ offset2 = offsetDir2 * settings.OffsetDistance;
-                XYZ normal2 = pipeDir.CrossProduct(offsetDir2).Normalize();
-                Plane plane2 = Plane.CreateByNormalAndOrigin(normal2, points[0]);
-                SketchPlane sketchPlane2 = SketchPlane.Create(doc, plane2);
-                SketchPlane originalSketchPlane2 = view.SketchPlane;
-                view.SketchPlane = sketchPlane2;
 
-                for (int i = 0; i < points.Count - 1; i++)
+                // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль реальной оси, размер - по проекции на плоскость
+                if (settings.ProjectToFloor)
                 {
-                    XYZ pointA = points[i];
-                    XYZ pointB = points[i + 1];
-                    if (pointA.DistanceTo(pointB) < 0.001) continue;
-                    Line modelLine = Line.CreateBound(pointA, pointB);
-                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane2) as ModelLine;
-                    if (helperLine == null) continue;
-                    Line dimensionLine = Line.CreateBound(pointA + offset2, pointB + offset2);
-                    ReferenceArray refArray = new ReferenceArray();
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
-                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        XYZ pointA = points[i];
+                        XYZ pointB = points[i + 1];
+                        if (pointA.DistanceTo(pointB) < 0.001) continue;
+
+                        // --- 1. Своя плоскость для каждого сегмента (как без галки) ---
+                        XYZ axisNormal2 = pipeDir.CrossProduct(offsetDir2).Normalize();
+                        string axisNormalKey2 = $"{Math.Round(axisNormal2.X, 6)},{Math.Round(axisNormal2.Y, 6)},{Math.Round(axisNormal2.Z, 6)}";
+
+                        SketchPlane axisSketchPlane2;
+                        if (sketchPlaneCache.ContainsKey(axisNormalKey2))
+                            axisSketchPlane2 = sketchPlaneCache[axisNormalKey2];
+                        else
+                        {
+                            Plane axisPlane2 = Plane.CreateByNormalAndOrigin(axisNormal2, pointA);
+                            axisSketchPlane2 = SketchPlane.Create(doc, axisPlane2);
+                            sketchPlaneCache[axisNormalKey2] = axisSketchPlane2;
+                        }
+
+                        SketchPlane originalSketchPlane2 = view.SketchPlane;
+                        view.SketchPlane = axisSketchPlane2;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane2) as ModelLine;
+                        if (helperLine == null)
+                        {
+                            view.SketchPlane = originalSketchPlane2;
+                            continue;
+                        }
+
+                        // --- 2. РАЗМЕР ПО ПРОЕКЦИИ НА ГОРИЗОНТАЛЬНУЮ ПЛОСКОСТЬ ---
+                        double avgHeight = GetAverageHeight(pointA, pointB);
+                        XYZ pointAProj = ProjectToHeight(pointA, avgHeight);
+                        XYZ pointBProj = ProjectToHeight(pointB, avgHeight);
+
+                        SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                        view.SketchPlane = dimSketchPlane;
+
+                        XYZ dimStart = pointAProj + offset2;
+                        XYZ dimEnd = pointBProj + offset2;
+                        Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+
+                        view.SketchPlane = originalSketchPlane2;
+                    }
+                    return true;
                 }
-                view.SketchPlane = originalSketchPlane2;
-                return true;
+                else
+                {
+                    // Обычный режим БЕЗ галки
+                    XYZ normal2 = pipeDir.CrossProduct(offsetDir2).Normalize();
+                    string normalKey2 = $"{Math.Round(normal2.X, 6)},{Math.Round(normal2.Y, 6)},{Math.Round(normal2.Z, 6)}";
+
+                    SketchPlane sketchPlane2;
+                    if (sketchPlaneCache.ContainsKey(normalKey2))
+                        sketchPlane2 = sketchPlaneCache[normalKey2];
+                    else
+                    {
+                        Plane plane = Plane.CreateByNormalAndOrigin(normal2, points[0]);
+                        sketchPlane2 = SketchPlane.Create(doc, plane);
+                        sketchPlaneCache[normalKey2] = sketchPlane2;
+                    }
+
+                    SketchPlane originalSketchPlane2 = view.SketchPlane;
+                    view.SketchPlane = sketchPlane2;
+
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        XYZ pointA = points[i];
+                        XYZ pointB = points[i + 1];
+                        if (pointA.DistanceTo(pointB) < 0.001) continue;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane2) as ModelLine;
+                        if (helperLine == null) continue;
+
+                        Line dimensionLine = Line.CreateBound(pointA + offset2, pointB + offset2);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    }
+                    view.SketchPlane = originalSketchPlane2;
+                    return true;
+                }
             }
             catch (Exception ex) { errorMessage += $"\n- Труба {pipe.Id}: 💥 {ex.Message}"; return false; }
         }
@@ -824,7 +1383,6 @@ namespace PlugINPRO.Commands.TS
                 XYZ ductDir = (ductEnd - ductStart).Normalize();
                 double ductLength = ductStart.DistanceTo(ductEnd);
 
-                // Находим опоры на оси воздуховода
                 List<FamilyInstance> supportsOnDuct = new List<FamilyInstance>();
                 foreach (FamilyInstance fitting in selectedFittings)
                 {
@@ -837,7 +1395,6 @@ namespace PlugINPRO.Commands.TS
                         supportsOnDuct.Add(fitting);
                 }
 
-                // Находим концевые фитинги
                 ConnectorManager connectorManager = duct.ConnectorManager;
                 FamilyInstance startFitting = null, endFitting = null;
                 if (connectorManager != null)
@@ -849,7 +1406,8 @@ namespace PlugINPRO.Commands.TS
                             foreach (Connector connectedConn in conn.AllRefs)
                             {
                                 Element connectedElement = connectedConn.Owner;
-                                if (connectedElement is FamilyInstance fitting && fitting.Category != null && fitting.Category.Name == "Duct Fittings")
+                                if (connectedElement is FamilyInstance fitting && fitting.Category != null &&
+                                    fitting.Category.Id.IntegerValue == (int)BuiltInCategory.OST_DuctFitting)
                                 { startFitting = fitting; break; }
                             }
                         }
@@ -858,7 +1416,8 @@ namespace PlugINPRO.Commands.TS
                             foreach (Connector connectedConn in conn.AllRefs)
                             {
                                 Element connectedElement = connectedConn.Owner;
-                                if (connectedElement is FamilyInstance fitting && fitting.Category != null && fitting.Category.Name == "Duct Fittings")
+                                if (connectedElement is FamilyInstance fitting && fitting.Category != null &&
+                                    fitting.Category.Id.IntegerValue == (int)BuiltInCategory.OST_DuctFitting)
                                 { endFitting = fitting; break; }
                             }
                         }
@@ -920,22 +1479,82 @@ namespace PlugINPRO.Commands.TS
                     if (Math.Abs(ductDir.DotProduct(up)) > 0.99) up = XYZ.BasisX;
                     XYZ offsetDir = ductDir.CrossProduct(up).Normalize();
                     XYZ offset = offsetDir * settings.OffsetDistance;
-                    Line modelLine = Line.CreateBound(pointA, pointB);
-                    XYZ normal = ductDir.CrossProduct(offsetDir).Normalize();
-                    Plane plane = Plane.CreateByNormalAndOrigin(normal, pointA);
-                    SketchPlane sketchPlane = SketchPlane.Create(doc, plane);
-                    SketchPlane originalSketchPlane = view.SketchPlane;
-                    view.SketchPlane = sketchPlane;
-                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
-                    if (helperLine == null) { errorMessage += $"\n- Воздуховод {duct.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
-                    Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
-                    ReferenceArray refArray = new ReferenceArray();
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
-                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                    if (dimensionType != null) dimension.DimensionType = dimensionType;
-                    view.SketchPlane = originalSketchPlane;
-                    return true;
+
+                    // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль реальной линии, размер - по проекции на плоскость
+                    if (settings.ProjectToFloor)
+                    {
+                        // --- 1. ModelLine ПО РЕАЛЬНЫМ ТОЧКАМ (как без галки) ---
+                        XYZ axisNormal = ductDir.CrossProduct(offsetDir).Normalize();
+                        string axisNormalKey = $"{Math.Round(axisNormal.X, 6)},{Math.Round(axisNormal.Y, 6)},{Math.Round(axisNormal.Z, 6)}";
+
+                        SketchPlane axisSketchPlane;
+                        if (sketchPlaneCache.ContainsKey(axisNormalKey))
+                            axisSketchPlane = sketchPlaneCache[axisNormalKey];
+                        else
+                        {
+                            Plane axisPlane = Plane.CreateByNormalAndOrigin(axisNormal, pointA);
+                            axisSketchPlane = SketchPlane.Create(doc, axisPlane);
+                            sketchPlaneCache[axisNormalKey] = axisSketchPlane;
+                        }
+
+                        SketchPlane originalSketchPlane = view.SketchPlane;
+                        view.SketchPlane = axisSketchPlane;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane) as ModelLine;
+                        if (helperLine == null) { errorMessage += $"\n- Воздуховод {duct.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                        // --- 2. РАЗМЕР - ОТНОСИТЕЛЬНО ПРОЕКЦИИ НА ГОРИЗОНТАЛЬНУЮ ПЛОСКОСТЬ ---
+                        double avgHeight = GetAverageHeight(pointA, pointB);
+                        XYZ pointAProj = ProjectToHeight(pointA, avgHeight);
+                        XYZ pointBProj = ProjectToHeight(pointB, avgHeight);
+
+                        SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                        view.SketchPlane = dimSketchPlane;
+
+                        XYZ dimStart = pointAProj + offset;
+                        XYZ dimEnd = pointBProj + offset;
+                        Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+                        view.SketchPlane = originalSketchPlane;
+                        return true;
+                    }
+                    else
+                    {
+                        // Обычный режим БЕЗ галки
+                        XYZ normal = ductDir.CrossProduct(offsetDir).Normalize();
+                        string normalKey = $"{Math.Round(normal.X, 6)},{Math.Round(normal.Y, 6)},{Math.Round(normal.Z, 6)}";
+
+                        SketchPlane sketchPlane;
+                        if (sketchPlaneCache.ContainsKey(normalKey))
+                            sketchPlane = sketchPlaneCache[normalKey];
+                        else
+                        {
+                            Plane plane = Plane.CreateByNormalAndOrigin(normal, pointA);
+                            sketchPlane = SketchPlane.Create(doc, plane);
+                            sketchPlaneCache[normalKey] = sketchPlane;
+                        }
+
+                        SketchPlane originalSketchPlane = view.SketchPlane;
+                        view.SketchPlane = sketchPlane;
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane) as ModelLine;
+                        if (helperLine == null) { errorMessage += $"\n- Воздуховод {duct.Id}: ❌ не удалось создать ModelLine"; view.SketchPlane = originalSketchPlane; return false; }
+
+                        Line dimensionLine = Line.CreateBound(pointA + offset, pointB + offset);
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+                        view.SketchPlane = originalSketchPlane;
+                        return true;
+                    }
                 }
 
                 // ЕСЛИ ОПОРЫ ЕСТЬ
@@ -974,29 +1593,101 @@ namespace PlugINPRO.Commands.TS
                 if (Math.Abs(ductDir.DotProduct(up2)) > 0.99) up2 = XYZ.BasisX;
                 XYZ offsetDir2 = ductDir.CrossProduct(up2).Normalize();
                 XYZ offset2 = offsetDir2 * settings.OffsetDistance;
-                XYZ normal2 = ductDir.CrossProduct(offsetDir2).Normalize();
-                Plane plane2 = Plane.CreateByNormalAndOrigin(normal2, points[0]);
-                SketchPlane sketchPlane2 = SketchPlane.Create(doc, plane2);
-                SketchPlane originalSketchPlane2 = view.SketchPlane;
-                view.SketchPlane = sketchPlane2;
 
-                for (int i = 0; i < points.Count - 1; i++)
+                // ЕСЛИ ГАЛКА ВКЛЮЧЕНА - model line вдоль реальной оси, размер - по проекции на плоскость
+                if (settings.ProjectToFloor)
                 {
-                    XYZ pointA = points[i];
-                    XYZ pointB = points[i + 1];
-                    if (pointA.DistanceTo(pointB) < 0.001) continue;
-                    Line modelLine = Line.CreateBound(pointA, pointB);
-                    ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane2) as ModelLine;
-                    if (helperLine == null) continue;
-                    Line dimensionLine = Line.CreateBound(pointA + offset2, pointB + offset2);
-                    ReferenceArray refArray = new ReferenceArray();
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
-                    refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
-                    Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
-                    if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        XYZ pointA = points[i];
+                        XYZ pointB = points[i + 1];
+                        if (pointA.DistanceTo(pointB) < 0.001) continue;
+
+                        XYZ axisNormal2 = ductDir.CrossProduct(offsetDir2).Normalize();
+                        string axisNormalKey2 = $"{Math.Round(axisNormal2.X, 6)},{Math.Round(axisNormal2.Y, 6)},{Math.Round(axisNormal2.Z, 6)}";
+
+                        SketchPlane axisSketchPlane2;
+                        if (sketchPlaneCache.ContainsKey(axisNormalKey2))
+                            axisSketchPlane2 = sketchPlaneCache[axisNormalKey2];
+                        else
+                        {
+                            Plane axisPlane2 = Plane.CreateByNormalAndOrigin(axisNormal2, pointA);
+                            axisSketchPlane2 = SketchPlane.Create(doc, axisPlane2);
+                            sketchPlaneCache[axisNormalKey2] = axisSketchPlane2;
+                        }
+
+                        SketchPlane originalSketchPlane2 = view.SketchPlane;
+                        view.SketchPlane = axisSketchPlane2;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, axisSketchPlane2) as ModelLine;
+                        if (helperLine == null)
+                        {
+                            view.SketchPlane = originalSketchPlane2;
+                            continue;
+                        }
+
+                        double avgHeight = GetAverageHeight(pointA, pointB);
+                        XYZ pointAProj = ProjectToHeight(pointA, avgHeight);
+                        XYZ pointBProj = ProjectToHeight(pointB, avgHeight);
+
+                        SketchPlane dimSketchPlane = GetSketchPlaneWithProjection(doc, avgHeight);
+                        view.SketchPlane = dimSketchPlane;
+
+                        XYZ dimStart = pointAProj + offset2;
+                        XYZ dimEnd = pointBProj + offset2;
+                        Line dimensionLine = Line.CreateBound(dimStart, dimEnd);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+
+                        view.SketchPlane = originalSketchPlane2;
+                    }
+                    return true;
                 }
-                view.SketchPlane = originalSketchPlane2;
-                return true;
+                else
+                {
+                    // Обычный режим БЕЗ галки
+                    XYZ normal2 = ductDir.CrossProduct(offsetDir2).Normalize();
+                    string normalKey2 = $"{Math.Round(normal2.X, 6)},{Math.Round(normal2.Y, 6)},{Math.Round(normal2.Z, 6)}";
+
+                    SketchPlane sketchPlane2;
+                    if (sketchPlaneCache.ContainsKey(normalKey2))
+                        sketchPlane2 = sketchPlaneCache[normalKey2];
+                    else
+                    {
+                        Plane plane = Plane.CreateByNormalAndOrigin(normal2, points[0]);
+                        sketchPlane2 = SketchPlane.Create(doc, plane);
+                        sketchPlaneCache[normalKey2] = sketchPlane2;
+                    }
+
+                    SketchPlane originalSketchPlane2 = view.SketchPlane;
+                    view.SketchPlane = sketchPlane2;
+
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        XYZ pointA = points[i];
+                        XYZ pointB = points[i + 1];
+                        if (pointA.DistanceTo(pointB) < 0.001) continue;
+
+                        Line modelLine = Line.CreateBound(pointA, pointB);
+                        ModelLine helperLine = doc.Create.NewModelCurve(modelLine, sketchPlane2) as ModelLine;
+                        if (helperLine == null) continue;
+
+                        Line dimensionLine = Line.CreateBound(pointA + offset2, pointB + offset2);
+
+                        ReferenceArray refArray = new ReferenceArray();
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(0));
+                        refArray.Append(helperLine.GeometryCurve.GetEndPointReference(1));
+                        Dimension dimension = doc.Create.NewDimension(view, dimensionLine, refArray);
+                        if (dimensionType != null) dimension.DimensionType = dimensionType;
+                    }
+                    view.SketchPlane = originalSketchPlane2;
+                    return true;
+                }
             }
             catch (Exception ex) { errorMessage += $"\n- Воздуховод {duct.Id}: 💥 {ex.Message}"; return false; }
         }
@@ -1119,8 +1810,10 @@ namespace PlugINPRO.Commands.TS
             if (elem is Duct) return true;
             if (elem is FamilyInstance familyInstance && familyInstance.Category != null)
             {
-                string catName = familyInstance.Category.Name;
-                if (catName.Contains("Fittings") || catName.Contains("Support") || catName.Contains("Опора") || catName.Contains("Крепление"))
+                BuiltInCategory cat = (BuiltInCategory)familyInstance.Category.Id.IntegerValue;
+                if (cat == BuiltInCategory.OST_PipeFitting ||
+                    cat == BuiltInCategory.OST_DuctFitting ||
+                    cat == BuiltInCategory.OST_StructuralFraming)
                     return true;
             }
             return false;

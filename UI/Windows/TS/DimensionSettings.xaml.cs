@@ -30,6 +30,9 @@ namespace PlugINPRO.UI.Windows.TS
 
             // Устанавливаем значение смещения (переводим из метров в миллиметры)
             OffsetTextBox.Text = (settings.OffsetDistance * 1000).ToString("F0");
+
+            // 🆕 Устанавливаем состояние галочки
+            ProjectToFloorCheckBox.IsChecked = settings.ProjectToFloor;
         }
 
         private void LoadDimensionTypes()
@@ -128,6 +131,9 @@ namespace PlugINPRO.UI.Windows.TS
                     TaskDialog.Show("Ошибка", "Введите корректное значение смещения");
                     return;
                 }
+
+                // 🆕 Сохраняем состояние галочки
+                settings.ProjectToFloor = ProjectToFloorCheckBox.IsChecked ?? false;
 
                 settings.Save();
 
