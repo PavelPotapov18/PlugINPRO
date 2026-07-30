@@ -14,62 +14,56 @@ namespace PlugINPRO
         // Статические переменные для хранения выбранных семейств
         public static FamilySymbol SelectedSupportFamily { get; set; }
         public static FamilySymbol SelectedCableTraySupportFamily { get; set; }
-        public static FamilySymbol SelectedPipeSupportFamily { get; set; } // НОВОЕ: для труб
+        public static FamilySymbol SelectedPipeSupportFamily { get; set; }
 
         // ============================================
         // ДОБАВЛЕННЫЕ ПОЛЯ ДЛЯ ХРАНЕНИЯ РАЗМЕРОВ
         // ============================================
 
-        // Последние размеры воздуховода (для информации)
         public static double LastDuctWidth { get; set; }
         public static double LastDuctHeight { get; set; }
         public static double LastDuctDiameter { get; set; }
         public static bool LastDuctWasRound { get; set; }
-
-        // Можно также хранить строковую информацию для отображения
         public static string LastDuctInfo { get; set; }
 
         public Result OnStartup(UIControlledApplication application)
         {
 
-            // Пытаемся создать вкладку (если уже есть — Revit кинет исключение)
+            // Пытаемся создать вкладку
             try
             {
                 application.CreateRibbonTab("INPRO");
             }
             catch
             {
-                // вкладка уже существует — это нормально
+                // вкладка уже существует
             }
 
-            // Путь к текущей DLL
             string assemblyPath = Assembly.GetExecutingAssembly().Location;
 
-            // Создаём панель "Информация о плагине" на вкладке
+            // ============================================
+            // ПАНЕЛЬ "О плагине"
+            // ============================================
             RibbonPanel infoPanel = application.CreateRibbonPanel("INPRO", "О плагине");
             PushButtonData logoButtonData = new PushButtonData(
                 "LogoButton",
                 "Info",
                 assemblyPath,
                 "PlugINPRO.Commands.PluginInfo.InfoCommand"
-                )
+            )
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.PluginInfo.info32.png"),
                 Image = LoadImage("PlugINPRO.Resources.PluginInfo.info16.png"),
                 ToolTip = "PlugINPRO v1.0",
                 LongDescription = "О плагине"
             };
-
             infoPanel.AddItem(logoButtonData);
-
 
             // ============================================
             // ПАНЕЛЬ "ОБЩИЕ ИНСТРУМЕНТЫ"
             // ============================================
-
             RibbonPanel commonPanel = application.CreateRibbonPanel("INPRO", "Общие инструменты");
 
-            // Кнопка "Проставление ревизий"
             PushButtonData revButtonData = new PushButtonData(
                 "RevisionButton",
                 "Ревизии\nи ИЗМы",
@@ -81,11 +75,8 @@ namespace PlugINPRO
                 Image = LoadImage("PlugINPRO.Resources.Common.R00_16.png"),
                 ToolTip = "Проставление ревизий и ИЗМов в штампе"
             };
-
             commonPanel.AddItem(revButtonData);
 
-
-            // Кнопка "Отключение осей и уровней связанных файлов"
             PushButtonData gridsButtonData = new PushButtonData(
                 "GridsButton",
                 "Оси/Уровни\nоткл.",
@@ -97,10 +88,8 @@ namespace PlugINPRO
                 Image = LoadImage("PlugINPRO.Resources.Common.grids16.png"),
                 ToolTip = "Отключение осей и уровней в связанных файлах"
             };
-
             commonPanel.AddItem(gridsButtonData);
 
-            // Кнопка "Проверка рабочих наборов"
             PushButtonData worksetsButtonData = new PushButtonData(
                 "WorksetsButton",
                 "Проверка\nраб.наборов",
@@ -111,11 +100,10 @@ namespace PlugINPRO
                 LargeImage = LoadImage("PlugINPRO.Resources.Common.Worksets32.png"),
                 Image = LoadImage("PlugINPRO.Resources.Common.Worksets16.png"),
                 ToolTip = "Проверка рабочих наборов на корректность заполнения по элементам",
-                LongDescription = "Работает для наборов \"Общие уровни и сетки\" и наборов для связанных файлов (\"#Связь_АР\", \"#Связь_КР\" и др.)"
+                LongDescription = "Работает для наборов \"Общие уровни и сетки\" и наборов для связанных файлов"
             };
             commonPanel.AddItem(worksetsButtonData);
 
-            // Кнопка "3D по рабочим наборам"
             PushButtonData ThreeDByWorksetsButtonData = new PushButtonData(
                 "ThreeDByWorksetsButton",
                 "3D по\nраб.наборам",
@@ -125,12 +113,10 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.Common.cube32.png"),
                 Image = LoadImage("PlugINPRO.Resources.Common.cube16.png"),
-                ToolTip = "Создание 3D видов по рабочим наборам",
-                LongDescription = "Создает отдельные 3D виды, содержащие элементы только одного конкретного рабочего набора"
+                ToolTip = "Создание 3D видов по рабочим наборам"
             };
             commonPanel.AddItem(ThreeDByWorksetsButtonData);
 
-            // Кнопка "Экспорт PDF и DWG"
             PushButtonData exportButtonData = new PushButtonData(
                 "PdfDwgExportButton",
                 "Экспорт\nPDF и DWG",
@@ -140,8 +126,7 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.Common.export32.png"),
                 Image = LoadImage("PlugINPRO.Resources.Common.export16.png"),
-                ToolTip = "Экспорт листов и комплектов в PDF и DWG формат",
-                LongDescription = "Экспорт листов проекта в PDF и DWG по комплектам и создание сводного PDF файла для выбранного комплекта"
+                ToolTip = "Экспорт листов и комплектов в PDF и DWG формат"
             };
             commonPanel.AddItem(exportButtonData);
 
@@ -150,10 +135,6 @@ namespace PlugINPRO
             // ============================================
             RibbonPanel genplanPanel = application.CreateRibbonPanel("INPRO", "IFC");
 
-            // ============================================
-            // КОНТЕЙНЕР "IFC"
-            // ============================================
-            // Кнопка "IFC по координатам"
             PushButtonData ifcButtonData = new PushButtonData(
                 "IFCByCoordinates",
                 "IFC по\nкоординатам",
@@ -166,7 +147,6 @@ namespace PlugINPRO
                 ToolTip = "Переместить выбранный IFC на введенные координаты"
             };
 
-            // Кнопка "Сбросить"
             PushButtonData resetButtonData = new PushButtonData(
                 "ResetCoordinates",
                 "Сбросить",
@@ -178,7 +158,7 @@ namespace PlugINPRO
                 Image = LoadImage("PlugINPRO.Resources.IFC.ifc16.png"),
                 ToolTip = "Установить все координаты в 0"
             };
-            // Кнопка "Покраска IFC элементов"
+
             PushButtonData paintButtonData = new PushButtonData(
                 "IFCPaint",
                 "Покраска IFC элементов",
@@ -191,15 +171,13 @@ namespace PlugINPRO
                 ToolTip = "Покраска требуемых элементов из IFC связей"
             };
 
-            //Кнопка - контейнер "IFC"(открывает список команд по работе с IFC)
             PulldownButtonData IfcPullData = new PulldownButtonData("IFCTools", "IFC")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.IFC.ifc32.png"),
-                ToolTip = "Работа по переносу фалов IFC"
+                ToolTip = "Работа по переносу файлов IFC"
             };
 
             PulldownButton IfcPullButton = genplanPanel.AddItem(IfcPullData) as PulldownButton;
-
             IfcPullButton.AddPushButton(ifcButtonData);
             IfcPullButton.AddPushButton(resetButtonData);
             IfcPullButton.AddPushButton(paintButtonData);
@@ -207,10 +185,8 @@ namespace PlugINPRO
             // ============================================
             // ПАНЕЛЬ BIM
             // ============================================
-            //Создаем панель BIM
             RibbonPanel bimPanel = application.CreateRibbonPanel("INPRO", "BIM");
 
-            // Кнопка "IFC to RVT"
             PushButtonData IfcRvtButtonData = new PushButtonData(
                 "IFСtoRVT",
                 "IFC в RVT",
@@ -222,17 +198,13 @@ namespace PlugINPRO
                 Image = LoadImage("PlugINPRO.Resources.IFC.ifc16.png"),
                 ToolTip = "Перенос IFC файлов в формат RVT с изменением свойств"
             };
-
             bimPanel.AddItem(IfcRvtButtonData);
-
 
             // ============================================
             // ПАНЕЛЬ АР (Архитектура)
             // ============================================
-
             RibbonPanel arPanel = application.CreateRibbonPanel("INPRO", "АР");
 
-            // Кнопка "Редактор дверей"
             PushButtonData doorEditorButtonData = new PushButtonData(
                 "DoorEditor",
                 "Редактор\nдверей",
@@ -242,17 +214,11 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.dooredit32.png"),
                 Image = LoadImage("PlugINPRO.Resources.AR.dooredit16.png"),
-                ToolTip = "Редактирование параметров выбранной двери с предпросмотром",
-                LongDescription = "Позволяет редактировать параметры двери в реальном времени с визуальным отображением изменений"
+                ToolTip = "Редактирование параметров выбранной двери с предпросмотром"
             };
-
             arPanel.AddItem(doorEditorButtonData);
 
-            // ============================================
             // КОНТЕЙНЕР "ВОМ"
-            // ============================================
-
-            // Кнопка "Подсчет ВОМ"
             PushButtonData vomСountButtonData = new PushButtonData(
                 "VOMCount",
                 "Подсчет ВОМ",
@@ -263,10 +229,9 @@ namespace PlugINPRO
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
                 Image = LoadImage("PlugINPRO.Resources.AR.vom16.png"),
                 ToolTip = "Заполнение данных для ведомости объемов материалов",
-                LongDescription = "Заполняет параметр \"ADSK_Количество\" у элементов (стен, полов и пр.) в зависимости от указанных для элементов единиц измерения"
+                LongDescription = "Заполняет параметр \"ADSK_Количество\" у элементов"
             };
-            
-            // Кнопка "Параметры ВОМ"
+
             PushButtonData vomParamsButtonData = new PushButtonData(
                 "VOMParams",
                 "Параметры ВОМ",
@@ -277,10 +242,9 @@ namespace PlugINPRO
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
                 Image = LoadImage("PlugINPRO.Resources.AR.vom16.png"),
                 ToolTip = "Заполнение данных для ведомости объемов материалов",
-                LongDescription = "Заполняет параметры \"INP_ВОМ_Категория\" и \"INP_ВОМ_Единица измерения\" для типоразмеров элементов (стен, полов и пр.)"
+                LongDescription = "Заполняет параметры \"INP_ВОМ_Категория\" и \"INP_ВОМ_Единица измерения\""
             };
 
-            //Кнопка - контейнер "ВОМ"(открывает список команд по созданию ведомости объемов материалов)
             PulldownButtonData VomPullData = new PulldownButtonData("VOMTools", "ВОМ")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
@@ -288,16 +252,10 @@ namespace PlugINPRO
             };
 
             PulldownButton VomPullButton = arPanel.AddItem(VomPullData) as PulldownButton;
-
             VomPullButton.AddPushButton(vomParamsButtonData);
             VomPullButton.AddPushButton(vomСountButtonData);
 
-
-            // ============================================
             // КОНТЕЙНЕР "ЭЭ"
-            // ============================================
-
-            // Кнопка "Ориентация по сторонам света"
             PushButtonData orientationButtonData = new PushButtonData(
                 "Orientation",
                 "Ориентация по сторонам света",
@@ -307,11 +265,9 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.compass32.png"),
                 Image = LoadImage("PlugINPRO.Resources.AR.compass16.png"),
-                ToolTip = "Заполняет параметр \"INP_Ориентация по сторонам света\" ",
-                LongDescription = "Заполняет параметр \"INP_Ориентация по сторонам света\" у элементов (стен, дверей и пр.) с учетом ориентации элементов относительно истинного севера"
+                ToolTip = "Заполняет параметр \"INP_Ориентация по сторонам света\""
             };
 
-            // Кнопка "Двери и окна по помещениям"
             PushButtonData DoorWinButtonData = new PushButtonData(
                 "DoorsWindows",
                 "Проверка дверей и окон",
@@ -321,8 +277,7 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.dooredit32.png"),
                 Image = LoadImage("PlugINPRO.Resources.AR.dooredit16.png"),
-                ToolTip = "Проверка готовности дверей и окон к расчету энергоэффективности",
-                LongDescription = "Проверка корректности заполнения требуемых параметров у дверей и окон"
+                ToolTip = "Проверка готовности дверей и окон к расчету энергоэффективности"
             };
 
             PushButtonData ExportToCsvButtonData = new PushButtonData(
@@ -334,11 +289,9 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
                 Image = LoadImage("PlugINPRO.Resources.AR.vom16.png"),
-                ToolTip = "Экспорт данных в CSV",
-                LongDescription = "Экспорт данных по помещениям и эоементам (стены, двери, окна) в табличном формате CSV"
+                ToolTip = "Экспорт данных в CSV"
             };
 
-            //Кнопка - контейнер "ЭЭ"(открывает список команд по заполнению параметров для расчета энергоэффективности)
             PulldownButtonData energyPullData = new PulldownButtonData("EnergyTools", "ЭЭ")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.vom32.png"),
@@ -346,17 +299,11 @@ namespace PlugINPRO
             };
 
             PulldownButton energyPullButton = arPanel.AddItem(energyPullData) as PulldownButton;
-
             energyPullButton.AddPushButton(orientationButtonData);
             energyPullButton.AddPushButton(DoorWinButtonData);
             energyPullButton.AddPushButton(ExportToCsvButtonData);
 
-
-            // ============================================
             // КОНТЕЙНЕР "ОТДЕЛКА"
-            // ============================================
-
-            // Кнопка "Отделка стен по помещениям"
             PushButtonData roomWallFaceButtonData = new PushButtonData(
                 "RoomWallFinish",
                 "Отделка стен по помещениям",
@@ -366,11 +313,9 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.WallFinish32.png"),
                 Image = LoadImage("PlugINPRO.Resources.AR.WallFinish16.png"),
-                ToolTip = "Отделка стен по помещениям",
-                LongDescription = "Создание отделки стен по каждому помещению в зависимости от стены-основы"
+                ToolTip = "Отделка стен по помещениям"
             };
 
-            // Кнопка "Отделка пола по помещениям"
             PushButtonData roomFloorButtonData = new PushButtonData(
                 "RoomFloorFinish",
                 "Отделка пола по помещениям",
@@ -380,11 +325,9 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.FloorFinish32.png"),
                 Image = LoadImage("PlugINPRO.Resources.AR.FloorFinish16.png"),
-                ToolTip = "Отделка стен по помещениям",
-                LongDescription = "Создание отделки пола по выбранному помещению"
+                ToolTip = "Отделка пола по помещениям"
             };
 
-            //Кнопка - контейнер "Отделка"(открывает список команд по заполнению параметров для создания отделки помещений)
             PulldownButtonData finishingPullData = new PulldownButtonData("FinishTools", "Отделка")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.Finish32.png"),
@@ -392,58 +335,107 @@ namespace PlugINPRO
             };
 
             PulldownButton finishingPullButton = arPanel.AddItem(finishingPullData) as PulldownButton;
-
             finishingPullButton.AddPushButton(roomWallFaceButtonData);
             finishingPullButton.AddPushButton(roomFloorButtonData);
 
-
-
-
             // ============================================
-            // ПАНЕЛЬ ОВ (Отопление и Вентиляция)
+            // 🆕 ПАНЕЛЬ ОВ (Отопление и Вентиляция) - КОНТЕЙНЕР
             // ============================================
             RibbonPanel ovPanel = application.CreateRibbonPanel("INPRO", "ОВ");
 
-            // Кнопка "Опоры воздуховодов"
-            PushButtonData ductSupportsButtonData = new PushButtonData(
-                "DuctSupports",
-                "Опоры\nвоздуховодов",
+            PulldownButtonData ductSupportPullData = new PulldownButtonData("DuctSupports", "Опоры воздуховодов")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.OV.DuctFitting32.png"),
+                ToolTip = "Инструменты по расстановке опор воздуховодов"
+            };
+
+            PulldownButton ductSupportsPulldownButton = ovPanel.AddItem(ductSupportPullData) as PulldownButton;
+
+            ductSupportsPulldownButton.AddPushButton(new PushButtonData(
+                "DuctSupportsByLength",
+                "По всей длине",
                 Assembly.GetExecutingAssembly().Location,
-                "PlugINPRO.Commands.OV.DuctSupportsCommand"
-            )
+                "PlugINPRO.Commands.OV.DuctSupportsByLengthCommand")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.OV.DuctFitting32.png"),
                 Image = LoadImage("PlugINPRO.Resources.OV.DuctFitting16.png"),
-                ToolTip = "Расстановка опор по траектории воздуховода\nВключает выбор крепления и шага"
-            };
-            ovPanel.AddItem(ductSupportsButtonData);
+                ToolTip = "Расстановка опор по всей длине воздуховода"
+            });
+
+            ductSupportsPulldownButton.AddPushButton(new PushButtonData(
+                "DuctSupportCopy",
+                "Копировать опору",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.Commands.OV.DuctSupportCopyCommand")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.OV.DuctFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.OV.DuctFitting16.png"),
+                ToolTip = "Копирование опоры вдоль трассы воздуховода"
+            });
+
+            ductSupportsPulldownButton.AddPushButton(new PushButtonData(
+                "DuctSupportPlace",
+                "Поставить опору",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.Commands.OV.DuctSupportPlaceCommand")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.OV.DuctFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.OV.DuctFitting16.png"),
+                ToolTip = "Установка опоры на воздуховод с заданным отступом"
+            });
 
             // ============================================
-            // ПАНЕЛЬ ЭОМ (Электромонтаж)
+            // 🆕 ПАНЕЛЬ ЭОМ (Электромонтаж) - КОНТЕЙНЕР
             // ============================================
             RibbonPanel eomPanel = application.CreateRibbonPanel("INPRO", "ЭОМ");
 
-            // Кнопка "Опоры лотков"
-            PushButtonData cableTraySupportsButtonData = new PushButtonData(
-                "CableTraySupports",
-                "Опоры\nлотков",
+            PulldownButtonData cableTraySupportPullData = new PulldownButtonData("CableTraySupports", "Опоры лотков")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting32.png"),
+                ToolTip = "Инструменты по расстановке опор кабельных лотков"
+            };
+
+            PulldownButton cableTraySupportsPulldownButton = eomPanel.AddItem(cableTraySupportPullData) as PulldownButton;
+
+            cableTraySupportsPulldownButton.AddPushButton(new PushButtonData(
+                "CableTraySupportsByLength",
+                "По всей длине",
                 Assembly.GetExecutingAssembly().Location,
-                "PlugINPRO.Commands.ES.CableTraySupportsCommand"
-            )
+                "PlugINPRO.Commands.ES.CableTraySupportsByLengthCommand")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting32.png"),
                 Image = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting16.png"),
-                ToolTip = "Расстановка опор по траектории кабельного лотка\nВключает выбор крепления и шага"
-            };
+                ToolTip = "Расстановка опор по всей длине лотка"
+            });
 
-            eomPanel.AddItem(cableTraySupportsButtonData);
+            cableTraySupportsPulldownButton.AddPushButton(new PushButtonData(
+                "CableTraySupportCopy",
+                "Копировать опору",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.Commands.ES.CableTraySupportCopyCommand")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting16.png"),
+                ToolTip = "Копирование опоры вдоль трассы лотка"
+            });
+
+            cableTraySupportsPulldownButton.AddPushButton(new PushButtonData(
+                "CableTraySupportPlace",
+                "Поставить опору",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.Commands.ES.CableTraySupportPlaceCommand")
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting16.png"),
+                ToolTip = "Установка опоры на лоток с заданным отступом"
+            });
 
             // ============================================
             // ПАНЕЛЬ ВК (Водопровод и канализация)
             // ============================================
             RibbonPanel vkPanel = application.CreateRibbonPanel("INPRO", "ВК");
 
-            // 1. Сначала создаем кнопки
+            // Кнопки
             PushButtonData pipeSupportsByLengthButtonData = new PushButtonData(
                 "PipeSupportsByPipeLength",
                 "Расстновка опор по всей длине трубопровода",
@@ -453,10 +445,9 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
                 Image = LoadImage("PlugINPRO.Resources.VK.PipeFitting16.png"),
-                ToolTip = "Расстановка опор по всей траектории трубопровода\nВключает выбор крепления и шага"
+                ToolTip = "Расстановка опор по всей траектории трубопровода"
             };
 
-            // НОВАЯ КНОПКА "Копировать относительно опоры"
             PushButtonData pipeSupportCopyButtonData = new PushButtonData(
                 "PipeSupportCopy",
                 "Копировать\nотносительно\nопоры",
@@ -466,28 +457,50 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
                 Image = LoadImage("PlugINPRO.Resources.VK.PipeFitting16.png"),
-                ToolTip = "Копирование опоры вдоль трассы трубы с заданным смещением",
-                LongDescription = "Выберите существующую опору, укажите смещение (+ или -) для копирования вдоль трассы трубы"
+                ToolTip = "Копирование опоры вдоль трассы трубы с заданным смещением"
             };
 
-            // 2. Создаем кнопку-контейнер
+            PushButtonData pipeSupportPlaceButtonData = new PushButtonData(
+                "PipeSupportPlace",
+                "Поставить\nопору",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.Commands.VK.PipeSupportPlaceCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.PipeFitting16.png"),
+                ToolTip = "Установка опоры на трубопровод с заданным отступом"
+            };
+
+            PushButtonData pipeSupportAlignZButtonData = new PushButtonData(
+                "PipeSupportAlignZ",
+                "Выравнивание\nпо Z",
+                Assembly.GetExecutingAssembly().Location,
+                "PlugINPRO.Commands.VK.PipeSupportAlignZCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.PipeFitting16.png"),
+                ToolTip = "Выравнивание опор по оси трубы"
+            };
+
+            // Контейнер ВК
             PulldownButtonData pipeSupportPullData = new PulldownButtonData("PipeSupports", "Опоры трубопроводов")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
-                ToolTip = "Инструменты по расстановке опор трубопроводов",
-                LongDescription = "Различные опции расстановки опор (по всей длине или конкретное количество)"
+                ToolTip = "Инструменты по расстановке опор трубопроводов"
             };
 
             PulldownButton pipeSupportsPulldownButton = vkPanel.AddItem(pipeSupportPullData) as PulldownButton;
 
-            // 3. Добавляем кнопки в контейнер
             pipeSupportsPulldownButton.AddPushButton(pipeSupportsByLengthButtonData);
-            pipeSupportsPulldownButton.AddPushButton(pipeSupportCopyButtonData); // ← добавляем новую кнопку
+            pipeSupportsPulldownButton.AddPushButton(pipeSupportCopyButtonData);
+            pipeSupportsPulldownButton.AddPushButton(pipeSupportPlaceButtonData);
+            pipeSupportsPulldownButton.AddPushButton(pipeSupportAlignZButtonData);
 
             // ============================================
             // НОВАЯ КНОПКА "Краска" на панели ВК
             // ============================================
-
             PushButtonData paintVKButtonData = new PushButtonData(
                 "PaintCalculator",
                 "Краска",
@@ -497,16 +510,13 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.Paint32.png"),
                 Image = LoadImage("PlugINPRO.Resources.VK.Paint16.png"),
-                ToolTip = "Расчет расхода краски для системы ВК",
-                LongDescription = "Выбирает систему трубопроводов и рассчитывает расход краски"
+                ToolTip = "Расчет расхода краски для системы ВК"
             };
-
             vkPanel.AddItem(paintVKButtonData);
 
             // ============================================
             // НОВАЯ КНОПКА-КОНТЕЙНЕР "Гидравлический расчёт" на панели ВК
             // ============================================
-
             PushButtonData hydraulicCalculateButtonData = new PushButtonData(
                 "HydraulicCalculate",
                 "Рассчитать\nсистему",
@@ -516,8 +526,7 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),
                 Image = LoadImage("PlugINPRO.Resources.VK.Hydraulic16.png"),
-                ToolTip = "Гидравлический расчёт выбранной системы",
-                LongDescription = "Выполняет гидравлический расчёт трубопроводной системы"
+                ToolTip = "Гидравлический расчёт выбранной системы"
             };
 
             PushButtonData hydraulicAddParamsButtonData = new PushButtonData(
@@ -529,15 +538,13 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.HydraulicParams32.png"),
                 Image = LoadImage("PlugINPRO.Resources.VK.HydraulicParams16.png"),
-                ToolTip = "Добавить параметры для гидравлического расчёта",
-                LongDescription = "Добавляет в проект общие параметры, необходимые для выполнения гидравлического расчёта"
+                ToolTip = "Добавить параметры для гидравлического расчёта"
             };
 
             PulldownButtonData hydraulicPullData = new PulldownButtonData("HydraulicTools", "Гидравлический\nрасчёт")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),
-                ToolTip = "Инструменты гидравлического расчёта",
-                LongDescription = "Выполнение гидравлического расчёта и добавление необходимых параметров"
+                ToolTip = "Инструменты гидравлического расчёта"
             };
 
             PulldownButton hydraulicPullButton = vkPanel.AddItem(hydraulicPullData) as PulldownButton;
@@ -545,13 +552,10 @@ namespace PlugINPRO
             hydraulicPullButton.AddPushButton(hydraulicAddParamsButtonData);
 
             // ============================================
-
-            // ============================================
-            // НОВАЯ ПАНЕЛЬ ТС (Тепловые сети)
+            // ПАНЕЛЬ ТС (Тепловые сети)
             // ============================================
             RibbonPanel tsPanel = application.CreateRibbonPanel("INPRO", "ТС");
 
-            // Кнопка "Размеры на аксонометрии"
             PushButtonData dimensionButtonData = new PushButtonData(
                 "AxonometricDimension",
                 "Размеры на\nаксонометрии",
@@ -561,13 +565,10 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.TS.dimensions32.png"),
                 Image = LoadImage("PlugINPRO.Resources.TS.dimensions16.png"),
-                ToolTip = "Расстановка размеров на аксонометрических видах",
-                LongDescription = "Проставляет размеры на выбранных трубах. Режим работы настраивается в окне настроек"
+                ToolTip = "Расстановка размеров на аксонометрических видах"
             };
-
             tsPanel.AddItem(dimensionButtonData);
 
-            // Кнопка "Настройки"
             PushButtonData settingsButtonData = new PushButtonData(
                 "DimensionSettings",
                 "Настройки\nразмеров",
@@ -577,15 +578,10 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.TS.settings32.png"),
                 Image = LoadImage("PlugINPRO.Resources.TS.settings16.png"),
-                ToolTip = "Настройка параметров простановки размеров",
-                LongDescription = "Выбор режима простановки размеров и типа размера"
+                ToolTip = "Настройка параметров простановки размеров"
             };
-
             tsPanel.AddItem(settingsButtonData);
 
-            // ============================================
-            // НОВАЯ КНОПКА "Пересечение осей"
-            // ============================================
             PushButtonData dimensionToGridsButtonData = new PushButtonData(
                 "DimensionToGrids",
                 "Пересечение\nосей",
@@ -595,15 +591,24 @@ namespace PlugINPRO
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.dimensiontogrids32.png"),
                 Image = LoadImage("PlugINPRO.Resources.dimensiontogrids16.png"),
-                ToolTip = "Размер от трубы/фитинга до пересечения осей",
-                LongDescription = "Создает размер от выбранной точки трубы или центра фитинга до точки пересечения двух выбранных осей"
+                ToolTip = "Размер от трубы/фитинга до пересечения осей"
             };
-
             tsPanel.AddItem(dimensionToGridsButtonData);
-            // ============================================
+
+            PushButtonData pipeSlopeTriangleButtonData = new PushButtonData(
+                "PipeSlopeTriangle",
+                "Треугольник\nуклона",
+                assemblyPath,
+                "PlugINPRO.Commands.VK.PipeSlopeTriangleCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.TS.triangle32.png"),
+                Image = LoadImage("PlugINPRO.Resources.TS.triangle16.png"),
+                ToolTip = "Построение треугольника уклона трубы"
+            };
+            tsPanel.AddItem(pipeSlopeTriangleButtonData);
 
             return Result.Succeeded;
-
         }
 
         public Result OnShutdown(UIControlledApplication application)
@@ -630,6 +635,5 @@ namespace PlugINPRO
                 return image;
             }
         }
-
     }
 }

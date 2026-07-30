@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Копирование опоры вдоль трубы" 
-        Height="720" 
+        Height="780" 
         Width="400"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize">
@@ -85,8 +85,26 @@
             </TextBlock>
         </Border>
 
+        <!-- ГАЛОЧКА: Размер относительно горизонтальной плоскости -->
+        <GroupBox Grid.Row="4" Header="Настройки расчета:" Margin="0,10,0,0">
+            <StackPanel>
+                <CheckBox x:Name="chkProjectToHorizontal" 
+                          Content="Размер относительно горизонтальной плоскости"
+                          Margin="5"
+                          IsChecked="False"
+                          ToolTip="При включении смещение пересчитывается с учетом уклона трубы (проекция на горизонталь). При отключении - смещение берется прямо по оси трубы."/>
+
+                <TextBlock x:Name="tbProjectionInfo" 
+                           Text="✗ Выключено: смещение по оси трубы (без учета уклона)"
+                           FontSize="10" 
+                           Foreground="Gray" 
+                           Margin="15,0,0,5" 
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </GroupBox>
+
         <!-- Смещение -->
-        <GroupBox Grid.Row="4" Header="Смещение (по горизонтали):" Margin="0,10,0,0">
+        <GroupBox Grid.Row="5" Header="Смещение (по горизонтали):" Margin="0,10,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -105,7 +123,7 @@
         </GroupBox>
 
         <!-- Количество и шаг -->
-        <GroupBox Grid.Row="5" Header="Копирование нескольких опор:" Margin="0,10,0,0">
+        <GroupBox Grid.Row="6" Header="Копирование нескольких опор:" Margin="0,10,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -132,7 +150,7 @@
         </GroupBox>
 
         <!-- Информация -->
-        <Border Grid.Row="6" BorderBrush="#FFE0E0E0" BorderThickness="1" 
+        <Border Grid.Row="7" BorderBrush="#FFE0E0E0" BorderThickness="1" 
                 Background="#FFF5F5F5" Margin="0,10,0,0">
             <TextBlock x:Name="tbInfo" TextWrapping="Wrap" TextAlignment="Center" 
                        FontSize="11" Margin="5">

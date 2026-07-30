@@ -14,6 +14,7 @@ namespace PlugINPRO.UI.Windows.VK
         public double Spacing { get; private set; }
         public double Offset { get; private set; }
         public bool UsePreviousFamily { get; private set; }
+        public bool ProjectToHorizontal { get; private set; }
 
         private Document _document;
         private List<FamilySymbol> _availableFamilies;
@@ -29,15 +30,14 @@ namespace PlugINPRO.UI.Windows.VK
         {
             try
             {
-                // Загружаем доступные семейства с фильтром
                 LoadAvailableFamiliesWithFilter();
-
-                // Показываем информацию о предыдущем выборе
                 UpdatePreviousFamilyInfo();
-
-                // Устанавливаем фокус на поле ввода отступа
                 txtOffset.Focus();
                 txtOffset.SelectAll();
+
+                chkProjectToHorizontal.Checked += ChkProjectToHorizontal_Changed;
+                chkProjectToHorizontal.Unchecked += ChkProjectToHorizontal_Changed;
+                UpdateProjectionInfo();
             }
             catch (Exception ex)
             {
@@ -46,11 +46,29 @@ namespace PlugINPRO.UI.Windows.VK
             }
         }
 
+        private void ChkProjectToHorizontal_Changed(object sender, RoutedEventArgs e)
+        {
+            UpdateProjectionInfo();
+        }
+
+        private void UpdateProjectionInfo()
+        {
+            if (chkProjectToHorizontal.IsChecked == true)
+            {
+                tbProjectionInfo.Text = "✓ Включено: шаг и отступ по горизонтали (с учетом уклона трубы)";
+                tbProjectionInfo.Foreground = System.Windows.Media.Brushes.Green;
+            }
+            else
+            {
+                tbProjectionInfo.Text = "✗ Выключено: шаг и отступ по оси трубы (без учета уклона)";
+                tbProjectionInfo.Foreground = System.Windows.Media.Brushes.DarkOrange;
+            }
+        }
+
         private void LoadAvailableFamiliesWithFilter()
         {
             try
             {
-                // Ищем семейства в категории PIPE FITTINGS
                 FilteredElementCollector collector = new FilteredElementCollector(_document)
                     .OfClass(typeof(FamilySymbol))
                     .OfCategory(BuiltInCategory.OST_PipeFitting)
@@ -58,7 +76,6 @@ namespace PlugINPRO.UI.Windows.VK
 
                 _availableFamilies = collector.Cast<FamilySymbol>().ToList();
 
-                // ФИЛЬТР: оставляем только те, в названии которых есть "Крепление" или "Опора"
                 _availableFamilies = _availableFamilies
                     .Where(fs =>
                         fs.Family.Name.IndexOf("крепление", StringComparison.OrdinalIgnoreCase) >= 0 ||
@@ -69,10 +86,8 @@ namespace PlugINPRO.UI.Windows.VK
                         fs.Name.IndexOf("support", StringComparison.OrdinalIgnoreCase) >= 0)
                     .ToList();
 
-                // Если нашли семейства
                 if (_availableFamilies.Count > 0)
                 {
-                    // Создаем список для ComboBox
                     var familyItems = _availableFamilies.Select(fs => new
                     {
                         FamilySymbol = fs,
@@ -109,7 +124,6 @@ namespace PlugINPRO.UI.Windows.VK
                 name += $" : {symbol.Name}";
             }
 
-            // Обрезаем слишком длинные названия
             if (name.Length > 60)
                 name = name.Substring(0, 57) + "...";
 
@@ -127,8 +141,6 @@ namespace PlugINPRO.UI.Windows.VK
                     $"Можно использовать повторно или выбрать новое.";
 
                 rbPreviousFamily.Content = $"Использовать '{App.SelectedPipeSupportFamily.Family.Name}'";
-
-                // Находим предыдущее семейство в списке
                 SelectPreviousFamilyInComboBox();
             }
             else
@@ -144,7 +156,6 @@ namespace PlugINPRO.UI.Windows.VK
             if (_availableFamilies == null || App.SelectedPipeSupportFamily == null)
                 return;
 
-            // Ищем индекс предыдущего семейства в списке
             for (int i = 0; i < _availableFamilies.Count; i++)
             {
                 if (_availableFamilies[i].Id == App.SelectedPipeSupportFamily.Id)
@@ -162,7 +173,6 @@ namespace PlugINPRO.UI.Windows.VK
 
             try
             {
-                // Получаем выбранный шаг
                 if (rb1500.IsChecked == true)
                     Spacing = 1500;
                 else if (rb2000.IsChecked == true)
@@ -182,7 +192,6 @@ namespace PlugINPRO.UI.Windows.VK
                     Spacing = customSpacing;
                 }
 
-                // Получаем отступ
                 if (!double.TryParse(txtOffset.Text, out double offset))
                 {
                     MessageBox.Show("Введите корректное число для отступа!", "Ошибка",
@@ -191,7 +200,8 @@ namespace PlugINPRO.UI.Windows.VK
                 }
                 Offset = offset;
 
-                // Получаем выбранное семейство
+                ProjectToHorizontal = chkProjectToHorizontal.IsChecked == true;
+
                 if (rbPreviousFamily.IsChecked == true && rbPreviousFamily.IsEnabled)
                 {
                     UsePreviousFamily = true;
@@ -212,7 +222,6 @@ namespace PlugINPRO.UI.Windows.VK
                     SelectedFamily = selectedItem.FamilySymbol;
                 }
 
-                // Проверяем валидность семейства
                 if (SelectedFamily == null || !SelectedFamily.IsValidObject)
                 {
                     MessageBox.Show("Выбранное крепление не доступно!", "Ошибка",
@@ -232,7 +241,6 @@ namespace PlugINPRO.UI.Windows.VK
 
         private bool ValidateInput()
         {
-            // Проверка шага
             if (rbCustom.IsChecked == true)
             {
                 if (string.IsNullOrWhiteSpace(txtCustomSpacing.Text))
@@ -262,7 +270,6 @@ namespace PlugINPRO.UI.Windows.VK
                 }
             }
 
-            // Проверка отступа
             if (!double.TryParse(txtOffset.Text, out double offset))
             {
                 MessageBox.Show("Отступ должен быть числом!", "Ошибка",
@@ -281,7 +288,6 @@ namespace PlugINPRO.UI.Windows.VK
                 return false;
             }
 
-            // Проверка выбора крепления
             if (rbSelectNewFamily.IsChecked == true &&
                 (cmbFamilies.Items.Count == 0 || cmbFamilies.SelectedItem == null))
             {
@@ -299,10 +305,8 @@ namespace PlugINPRO.UI.Windows.VK
             Close();
         }
 
-        // Событие для проверки ввода в реальном времени
         private void txtCustomSpacing_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            // Разрешаем только цифры, точку и запятую
             foreach (char c in e.Text)
             {
                 if (!char.IsDigit(c) && c != '.' && c != ',')
@@ -315,7 +319,6 @@ namespace PlugINPRO.UI.Windows.VK
 
         private void txtOffset_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            // Разрешаем только цифры, точку и запятую
             foreach (char c in e.Text)
             {
                 if (!char.IsDigit(c) && c != '.' && c != ',')
@@ -328,7 +331,6 @@ namespace PlugINPRO.UI.Windows.VK
 
         private void txtCustomSpacing_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
-            // Автоматически выбираем радио-кнопку "Другой шаг"
             if (!string.IsNullOrWhiteSpace(txtCustomSpacing.Text))
             {
                 rbCustom.IsChecked = true;

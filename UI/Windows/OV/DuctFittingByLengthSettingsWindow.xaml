@@ -1,12 +1,11 @@
-﻿<Window x:Class="PlugINPRO.UI.Windows.ES.CableTrayFittingSettingsWindow"
+﻿<Window x:Class="PlugINPRO.UI.Windows.OV.DuctFittingByLengthSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:PlugINPRO"
         mc:Ignorable="d"
-        Title="Настройки креплений кабельных лотков" 
-        Height="700" 
+        Title="Настройки опор воздуховодов" 
+        Height="750" 
         Width="400"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize">
@@ -44,6 +43,10 @@
             <Setter Property="Padding" Value="5"/>
             <Setter Property="Margin" Value="5"/>
         </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="10">
@@ -53,12 +56,12 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Заголовок -->
-        <TextBlock Grid.Row="0" Text="Настройки креплений кабельных лотков" 
+        <TextBlock Grid.Row="0" Text="Настройки опор воздуховодов" 
                    FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"
                    Margin="0,0,0,10"/>
 
@@ -71,18 +74,16 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <RadioButton Grid.Row="0" x:Name="rb1500" Content="1500 мм" 
-                            GroupName="Spacing" IsChecked="True"/>
-                <RadioButton Grid.Row="1" x:Name="rb2000" Content="2000 мм" 
-                            GroupName="Spacing"/>
-                <RadioButton Grid.Row="2" x:Name="rb2500" Content="2500 мм" 
-                            GroupName="Spacing"/>
-                <RadioButton Grid.Row="3" x:Name="rbCustom" Content="Другой шаг:" 
-                            GroupName="Spacing"/>
+                <RadioButton Grid.Row="0" x:Name="rb1500" Content="1500 мм" GroupName="Spacing" IsChecked="True"/>
+                <RadioButton Grid.Row="1" x:Name="rb2000" Content="2000 мм" GroupName="Spacing"/>
+                <RadioButton Grid.Row="2" x:Name="rb2500" Content="2500 мм" GroupName="Spacing"/>
+                <RadioButton Grid.Row="3" x:Name="rb3000" Content="3000 мм" GroupName="Spacing"/>
+                <RadioButton Grid.Row="4" x:Name="rbCustom" Content="Другой шаг:" GroupName="Spacing"/>
 
-                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="20,5,0,0">
+                <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="20,5,0,0">
                     <TextBox x:Name="txtCustomSpacing" Width="80" Text="1000" 
                              IsEnabled="{Binding ElementName=rbCustom, Path=IsChecked}"/>
                     <TextBlock Text=" мм"/>
@@ -91,7 +92,7 @@
         </GroupBox>
 
         <!-- Отступ от начала -->
-        <GroupBox Grid.Row="2" Header="Отступ от начала лотка:" Margin="0,10,0,0">
+        <GroupBox Grid.Row="2" Header="Отступ от начала воздуховода:" Margin="0,10,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -104,13 +105,13 @@
                     <TextBlock Text=" мм" VerticalAlignment="Center" Margin="5,0,0,0"/>
                 </StackPanel>
 
-                <TextBlock Grid.Row="1" Text="0 мм = начало лотка, 1000 мм = через 1 м от начала" 
+                <TextBlock Grid.Row="1" Text="0 мм = начало воздуховода" 
                           FontSize="10" Foreground="Gray" Margin="0,5,0,0" TextWrapping="Wrap"/>
             </Grid>
         </GroupBox>
 
         <!-- Выбор крепления -->
-        <GroupBox Grid.Row="3" Header="Тип крепления:" Margin="0,10,0,0">
+        <GroupBox Grid.Row="3" Header="Тип опоры:" Margin="0,10,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -123,7 +124,7 @@
                             GroupName="Family" IsChecked="True"/>
 
                 <RadioButton Grid.Row="1" x:Name="rbSelectNewFamily" 
-                            Content="Выбрать новое крепление" 
+                            Content="Выбрать новую опору" 
                             GroupName="Family"/>
 
                 <ComboBox Grid.Row="2" x:Name="cmbFamilies" Margin="20,5,0,0"
@@ -136,7 +137,7 @@
         <Border Grid.Row="4" BorderBrush="#FFCCCCCC" BorderThickness="1" 
                 Background="#FFF8F8F8" Margin="0,10,0,0">
             <TextBlock x:Name="tbInfo" TextWrapping="Wrap" TextAlignment="Center">
-                <Run Text="Выберите шаг, отступ и тип крепления,"/><LineBreak/>
+                <Run Text="Выберите шаг, отступ и тип опоры,"/><LineBreak/>
                 <Run Text="затем нажмите 'Установить'"/>
             </TextBlock>
         </Border>
@@ -150,7 +151,7 @@
         </Border>
 
         <!-- Кнопки -->
-        <StackPanel Grid.Row="6" Orientation="Horizontal" 
+        <StackPanel Grid.Row="7" Orientation="Horizontal" 
                     HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button x:Name="btnCancel" Content="Отмена" Click="BtnCancel_Click"/>
             <Button x:Name="btnInstall" Content="Установить" 

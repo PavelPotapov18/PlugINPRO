@@ -12,6 +12,7 @@ namespace PlugINPRO.UI.Windows.VK
         public int Count { get; private set; }
         public double Spacing { get; private set; }
         public bool CopyMultiple { get; private set; }
+        public bool ProjectToHorizontal { get; private set; }
         public FamilyInstance SelectedSupport { get; private set; }
         public Pipe SelectedPipe { get; private set; }
         private double _slope;
@@ -25,7 +26,6 @@ namespace PlugINPRO.UI.Windows.VK
             _slope = slope;
             _isVertical = isVertical;
 
-            // По умолчанию копирование нескольких опор выключено
             chkCopyMultiple.IsChecked = false;
             txtCount.IsEnabled = false;
             txtSpacing.IsEnabled = false;
@@ -37,7 +37,6 @@ namespace PlugINPRO.UI.Windows.VK
         {
             try
             {
-                // Отображаем информацию о выбранной опоре
                 string supportName = SelectedSupport?.Symbol?.Family?.Name ?? "Неизвестно";
                 if (SelectedSupport?.Symbol != null && !string.IsNullOrEmpty(SelectedSupport.Symbol.Name))
                 {
@@ -45,7 +44,6 @@ namespace PlugINPRO.UI.Windows.VK
                 }
                 tbSupportInfo.Text = $"Выбрана опора: {supportName}";
 
-                // Отображаем информацию о трубе
                 if (SelectedPipe != null)
                 {
                     double diameter = GetPipeDiameter(SelectedPipe);
@@ -71,7 +69,6 @@ namespace PlugINPRO.UI.Windows.VK
                     btnCopy.IsEnabled = false;
                 }
 
-                // Отображаем информацию об уклоне
                 if (_isVertical)
                 {
                     tbSlopeInfo.Text = "✓ Вертикальная труба (уклон не применяется)";
@@ -91,7 +88,10 @@ namespace PlugINPRO.UI.Windows.VK
                     tbSlopeInfo.Foreground = System.Windows.Media.Brushes.Green;
                 }
 
-                // Фокус на поле ввода
+                chkProjectToHorizontal.Checked += ChkProjectToHorizontal_Changed;
+                chkProjectToHorizontal.Unchecked += ChkProjectToHorizontal_Changed;
+                UpdateProjectionInfo();
+
                 txtOffset.Focus();
                 txtOffset.SelectAll();
             }
@@ -99,6 +99,25 @@ namespace PlugINPRO.UI.Windows.VK
             {
                 MessageBox.Show($"Ошибка загрузки: {ex.Message}",
                     "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ChkProjectToHorizontal_Changed(object sender, RoutedEventArgs e)
+        {
+            UpdateProjectionInfo();
+        }
+
+        private void UpdateProjectionInfo()
+        {
+            if (chkProjectToHorizontal.IsChecked == true)
+            {
+                tbProjectionInfo.Text = "✓ Включено: смещение по горизонтали (с учетом уклона трубы)";
+                tbProjectionInfo.Foreground = System.Windows.Media.Brushes.Green;
+            }
+            else
+            {
+                tbProjectionInfo.Text = "✗ Выключено: смещение по оси трубы (без учета уклона)";
+                tbProjectionInfo.Foreground = System.Windows.Media.Brushes.DarkOrange;
             }
         }
 
@@ -175,6 +194,8 @@ namespace PlugINPRO.UI.Windows.VK
                 }
                 Offset = offset;
 
+                ProjectToHorizontal = chkProjectToHorizontal.IsChecked == true;
+
                 Count = 1;
                 Spacing = 0;
 
@@ -244,7 +265,6 @@ namespace PlugINPRO.UI.Windows.VK
                 return false;
             }
 
-            // Проверка количества и шага
             if (chkCopyMultiple.IsChecked == true)
             {
                 if (string.IsNullOrWhiteSpace(txtCount.Text))

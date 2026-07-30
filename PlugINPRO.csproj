@@ -66,12 +66,19 @@
     <Compile Include="Commands\AR\MaterialsCountCommand.cs" />
     <Compile Include="Commands\AR\MaterialsParamsCommand.cs" />
     <Compile Include="Commands\AR\OrientationCommand.cs" />
+    <Compile Include="Commands\ES\CableTraySupportCopyCommand.cs" />
+    <Compile Include="Commands\ES\CableTraySupportPlaceCommand.cs" />
+    <Compile Include="Commands\OV\DuctSupportCopyCommand.cs" />
+    <Compile Include="Commands\OV\DuctSupportPlaceCommand.cs" />
     <Compile Include="Commands\TS\AxonometricDimensionCommand.cs" />
     <Compile Include="Commands\TS\DimensionToGridsCommand.cs" />
+    <Compile Include="Commands\TS\PipeSlopeTriangleCommand.cs" />
     <Compile Include="Commands\VK\HydraulicCalculateCommand.cs" />
     <Compile Include="Commands\VK\HydraulicCalcViewModel.cs" />
     <Compile Include="Commands\VK\PaintCalculatorCommand.cs" />
+    <Compile Include="Commands\VK\PipeSupportAlignZCommand.cs" />
     <Compile Include="Commands\VK\PipeSupportCopyCommand.cs" />
+    <Compile Include="Commands\VK\PipeSupportPlaceCommand.cs" />
     <Compile Include="Services\AR\BoolToVisibilityConverter.cs" />
     <Compile Include="Services\AR\CsvExporter.cs" />
     <Compile Include="Services\AR\DoorOffsetMode.cs" />
@@ -92,10 +99,31 @@
     <Compile Include="UI\Windows\AR\FloorSettingsWindow.xaml.cs">
       <DependentUpon>FloorSettingsWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UI\Windows\ES\CableTrayFittingSettingsWindow.xaml.cs">
-      <DependentUpon>CableTrayFittingSettingsWindow.xaml</DependentUpon>
+    <Compile Include="Commands\ES\CableTraySupportsByLengthCommand.cs" />
+    <Compile Include="UI\Windows\ES\CableTrayFittingByLengthSettingsWindow.xaml.cs">
+      <DependentUpon>CableTrayFittingByLengthSettingsWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Commands\ES\CableTraySupportCommand.cs" />
+    <Compile Include="UI\Windows\ES\CableTraySupportCopySettingsWindow.xaml.cs">
+      <DependentUpon>CableTraySupportCopySettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\ES\CableTraySupportPlaceSettingsWindow.xaml.cs">
+      <DependentUpon>CableTraySupportPlaceSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\ES\CableTraySupportSelectWindow.xaml.cs">
+      <DependentUpon>CableTraySupportSelectWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\OV\DuctFittingByLengthSettingsWindow.xaml.cs">
+      <DependentUpon>DuctFittingByLengthSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\OV\DuctSupportCopySettingsWindow.xaml.cs">
+      <DependentUpon>DuctSupportCopySettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\OV\DuctSupportPlaceSettingsWindow.xaml.cs">
+      <DependentUpon>DuctSupportPlaceSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\OV\DuctSupportSelectWindow.xaml.cs">
+      <DependentUpon>DuctSupportSelectWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UI\Windows\TS\DimensionSettings.xaml.cs">
       <DependentUpon>DimensionSettings.xaml</DependentUpon>
     </Compile>
@@ -105,10 +133,7 @@
     <Compile Include="UI\Windows\AR\DoorPreviewWindow.xaml.cs">
       <DependentUpon>DoorPreviewWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UI\Windows\OV\DuctFittingSettingsWindow.xaml.cs">
-      <DependentUpon>DuctFittingSettingsWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Commands\OV\DuctSupportCommand.cs" />
+    <Compile Include="Commands\OV\DuctSupportsByLengthCommand.cs" />
     <Compile Include="Commands\Common\GridsOffCommand.cs" />
     <Compile Include="UI\Windows\Common\GridsOffWindow.xaml.cs">
       <DependentUpon>GridsOffWindow.xaml</DependentUpon>
@@ -154,6 +179,12 @@
     <Compile Include="UI\Windows\VK\PipeSupportCopySettingsWindow.xaml.cs">
       <DependentUpon>PipeSupportCopySettingsWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\Windows\VK\PipeSupportPlaceSettingsWindow.xaml.cs">
+      <DependentUpon>PipeSupportPlaceSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\VK\PipeSupportSelectWindow.xaml.cs">
+      <DependentUpon>PipeSupportSelectWindow.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Page Include="UI\Windows\AR\FinishSettingsWindow.xaml">
@@ -164,7 +195,35 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="UI\Windows\ES\CableTrayFittingSettingsWindow.xaml">
+    <Page Include="UI\Windows\ES\CableTrayFittingByLengthSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\ES\CableTraySupportCopySettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\ES\CableTraySupportPlaceSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\ES\CableTraySupportSelectWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\OV\DuctFittingByLengthSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\OV\DuctSupportCopySettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\OV\DuctSupportPlaceSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\OV\DuctSupportSelectWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -173,10 +232,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\Windows\AR\DoorPreviewWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="UI\Windows\OV\DuctFittingSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -221,6 +276,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UI\Windows\VK\PipeSupportCopySettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\VK\PipeSupportPlaceSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\VK\PipeSupportSelectWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -314,5 +377,6 @@
     <Analyzer Include="..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPI.dll" />
     <Analyzer Include="..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPIUI.dll" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

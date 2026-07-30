@@ -24,7 +24,6 @@ namespace PlugINPRO.Commands.VK
 
             try
             {
-                // 1. Показываем окно настроек для труб
                 PipeFittingByLengthSettingsWindow settingsWindow = new PipeFittingByLengthSettingsWindow(doc);
 
                 bool? dialogResult = null;
@@ -44,7 +43,6 @@ namespace PlugINPRO.Commands.VK
                     return Result.Cancelled;
                 }
 
-                // 2. Выбор трубы
                 Reference pipeRef = uidoc.Selection.PickObject(
                     ObjectType.Element,
                     new PipeSelectionFilter(),
@@ -57,21 +55,15 @@ namespace PlugINPRO.Commands.VK
                     TaskDialog.Show("Ошибка", "Выбранный элемент не является трубопроводом");
                     return Result.Failed;
                 }
-                
-                
 
-                // 3. Получаем размеры трубы, угол наклона трубы по уклону в %
                 PipeDimensions pipeDims = GetPipeDimensions(pipe);
                 double slopeAngle = Math.Atan(pipeDims.Slope);
-                //Параметры системы трубопровода
+
                 Parameter systemClassification = pipe.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM);
                 Parameter systemType = pipe.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
                 Parameter systemName = pipe.get_Parameter(BuiltInParameter.RBS_SYSTEM_NAME_PARAM);
                 Parameter systemAbbreviation = pipe.get_Parameter(BuiltInParameter.RBS_DUCT_PIPE_SYSTEM_ABBREVIATION_PARAM);
 
-
-
-                // 4. Получение кривой трубы
                 LocationCurve locationCurve = pipe.Location as LocationCurve;
                 if (locationCurve == null)
                 {
@@ -82,10 +74,20 @@ namespace PlugINPRO.Commands.VK
                 Curve curve = locationCurve.Curve;
                 double curveLengthMeters = UnitUtils.ConvertFromInternalUnits(curve.Length, UnitTypeId.Millimeters);
 
-                double spacingFeet = UnitUtils.ConvertToInternalUnits(settingsWindow.Spacing / Math.Cos(slopeAngle), UnitTypeId.Millimeters);
-                double offsetFeet = UnitUtils.ConvertToInternalUnits(settingsWindow.Offset / Math.Cos(slopeAngle), UnitTypeId.Millimeters);
+                double spacingFeet;
+                double offsetFeet;
 
-                // 5. Расчет точек размещения
+                if (settingsWindow.ProjectToHorizontal)
+                {
+                    spacingFeet = UnitUtils.ConvertToInternalUnits(settingsWindow.Spacing / Math.Cos(slopeAngle), UnitTypeId.Millimeters);
+                    offsetFeet = UnitUtils.ConvertToInternalUnits(settingsWindow.Offset / Math.Cos(slopeAngle), UnitTypeId.Millimeters);
+                }
+                else
+                {
+                    spacingFeet = UnitUtils.ConvertToInternalUnits(settingsWindow.Spacing, UnitTypeId.Millimeters);
+                    offsetFeet = UnitUtils.ConvertToInternalUnits(settingsWindow.Offset, UnitTypeId.Millimeters);
+                }
+
                 List<XYZ> placementPoints = CalculatePlacementPoints(curve, spacingFeet, offsetFeet);
 
                 if (placementPoints.Count == 0)
@@ -98,16 +100,13 @@ namespace PlugINPRO.Commands.VK
                     return Result.Cancelled;
                 }
 
-                // 6. Определяем тип трубы (вертикальная/горизонтальная)
                 XYZ pipeDirection = GetPipeDirection(curve);
                 bool isVertical = Math.Abs(pipeDirection.Z) > 0.9;
 
-                // 7. Получаем ориентацию для поворота опор
                 XYZ rotationOrientation;
 
                 if (isVertical)
                 {
-                    // Для ВЕРТИКАЛЬНЫХ труб
                     rotationOrientation = GetPipeWallOrientation(pipe);
 
                     TaskDialog.Show("Информация",
@@ -118,28 +117,23 @@ namespace PlugINPRO.Commands.VK
                 }
                 else
                 {
-                    // Для ГОРИЗОНТАЛЬНЫХ труб
                     rotationOrientation = new XYZ(pipeDirection.X, pipeDirection.Y, 0);
                     rotationOrientation = rotationOrientation.Normalize();
                 }
 
-                // 8. Размещение опор
                 using (Transaction trans = new Transaction(doc, "Размещение опор трубопровода"))
                 {
                     trans.Start();
 
-                    // Активация семейства если не активно
                     if (!settingsWindow.SelectedFamily.IsActive)
                         settingsWindow.SelectedFamily.Activate();
 
-                    // Размещение опор
                     int placedCount = 0;
 
                     foreach (XYZ point in placementPoints)
                     {
                         try
                         {
-                            // Создаем опору по точке
                             FamilyInstance support = doc.Create.NewFamilyInstance(
                                 point,
                                 settingsWindow.SelectedFamily,
@@ -147,15 +141,13 @@ namespace PlugINPRO.Commands.VK
 
                             if (support != null)
                             {
-                                // Устанавливаем параметры
-                                SetPipeParameters(support, 
+                                SetPipeParameters(support,
                                     pipeDims.Diameter,
                                     systemClassification.AsString(),
                                     doc.GetElement(systemType.AsElementId()).Name,
                                     systemName.AsString(),
                                     systemAbbreviation.AsString());
 
-                                // ПОВОРАЧИВАЕМ опору
                                 RotateSupport(support, point, rotationOrientation);
 
                                 placedCount++;
@@ -169,18 +161,22 @@ namespace PlugINPRO.Commands.VK
 
                     trans.Commit();
 
-                    // Сохраняем выбранное семейство
                     if (!settingsWindow.UsePreviousFamily)
                     {
                         App.SelectedPipeSupportFamily = settingsWindow.SelectedFamily;
                     }
 
+                    string projectionInfo = settingsWindow.ProjectToHorizontal
+                        ? "с учетом уклона (горизонтальная проекция)"
+                        : "по оси трубы (без учета уклона)";
+
                     string resultMessage =
                         $"Установлено опор: {placedCount} из {placementPoints.Count}\n" +
                         $"Шаг: {settingsWindow.Spacing} мм\n" +
                         $"Отступ: {settingsWindow.Offset} мм\n" +
+                        $"Расчет: {projectionInfo}\n" +
                         $"Тип: {(isVertical ? "Вертикальный" : "Горизонтальный")}\n" +
-                        $"Диаметр трубы: Ø{pipeDims.Diameter:F0} мм\n" + 
+                        $"Диаметр трубы: Ø{pipeDims.Diameter:F0} мм\n" +
                         $"Уклон трубы: {pipeDims.Slope}%";
 
                     TaskDialog.Show("Результат", resultMessage);
@@ -368,11 +364,9 @@ namespace PlugINPRO.Commands.VK
                     {
                         double distanceToEnd = curveLength - (currentDistance - spacing);
 
-                        // ✅ ИСПРАВЛЕНО: добавляем точку, если осталось больше 1 мм (0.00328 фута)
-                        double minDistanceFeet = 1.0 / 304.8; // 1 мм в футах
+                        double minDistanceFeet = 1.0 / 304.8;
                         if (distanceToEnd > minDistanceFeet)
                         {
-                            // ✅ ИСПРАВЛЕНО: берем точку строго на конце
                             XYZ endPoint = GetPointAtDistance(curve, curveLength);
                             if (endPoint != null)
                             {
@@ -405,12 +399,10 @@ namespace PlugINPRO.Commands.VK
         {
             try
             {
-                // ✅ ИСПРАВЛЕНО: допуск 0.001 фута (0.3 мм)
-                double tolerance = 0.0001; // 0.03 мм
+                double tolerance = 0.0001;
                 if (distance < 0) distance = 0;
                 if (distance > curve.Length) distance = curve.Length;
 
-                // ✅ ИСПРАВЛЕНО: для конца используем точное значение
                 if (Math.Abs(distance - curve.Length) < tolerance)
                 {
                     return curve.GetEndPoint(1);
@@ -421,11 +413,9 @@ namespace PlugINPRO.Commands.VK
                     XYZ start = line.GetEndPoint(0);
                     XYZ end = line.GetEndPoint(1);
 
-                    // ✅ ИСПРАВЛЕНО: используем параметр t от 0 до 1
                     double t = distance / curve.Length;
                     t = Math.Max(0.0, Math.Min(1.0, t));
 
-                    // Линейная интерполяция (точнее чем Evaluate для Line)
                     return new XYZ(
                         start.X + t * (end.X - start.X),
                         start.Y + t * (end.Y - start.Y),
@@ -434,7 +424,6 @@ namespace PlugINPRO.Commands.VK
                 }
                 else
                 {
-                    // Для изогнутых кривых
                     double param = distance / curve.Length;
                     param = Math.Max(0.0, Math.Min(1.0, param));
                     return curve.Evaluate(param, false);
@@ -463,7 +452,6 @@ namespace PlugINPRO.Commands.VK
         {
             public double Diameter { get; set; }
             public double Slope { get; set; }
-
         }
 
         private PipeDimensions GetPipeDimensions(Pipe pipe)
@@ -512,11 +500,11 @@ namespace PlugINPRO.Commands.VK
         }
 
         private void SetPipeParameters(
-            FamilyInstance support, 
-            double diameterMm, 
-            string systemClassification, 
-            string systemType, 
-            string systemName, 
+            FamilyInstance support,
+            double diameterMm,
+            string systemClassification,
+            string systemType,
+            string systemName,
             string systemAbbreviation)
         {
             try
@@ -536,7 +524,6 @@ namespace PlugINPRO.Commands.VK
                 SetStringParameterValue(support, "ADSK_Система_Тип", systemType);
                 SetStringParameterValue(support, "ADSK_Система_Имя", systemName);
                 SetStringParameterValue(support, "ADSK_Система_Сокращение", systemAbbreviation);
-
             }
             catch (Exception ex)
             {
@@ -553,7 +540,6 @@ namespace PlugINPRO.Commands.VK
                 {
                     if (param.StorageType == StorageType.Double)
                     {
-                        // Безопасный вызов без ref
                         double valueInFeet = valueMm / 304.8;
                         param.Set(valueInFeet);
                     }
@@ -579,7 +565,6 @@ namespace PlugINPRO.Commands.VK
                 {
                     if (param.StorageType == StorageType.String)
                     {
-                        // Безопасный вызов без ref
                         param.Set(value);
                     }
                 }

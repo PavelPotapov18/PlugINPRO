@@ -1,0 +1,66 @@
+﻿<Window x:Class="PlugINPRO.UI.Windows.OV.DuctSupportPlaceSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Настройка отступа" 
+        Height="380" 
+        Width="380"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Настройка отступа опоры" 
+                   FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"
+                   Margin="0,0,0,10"/>
+
+        <Border Grid.Row="1" BorderBrush="#FFE0E0E0" BorderThickness="1" 
+                Background="#FFF5F5F5" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock x:Name="tbDistanceFromStart" Text="От начала: 1000 мм" Margin="5,3,5,3"/>
+                <TextBlock x:Name="tbDistanceFromEnd" Text="От конца: 6000 мм" Margin="5,3,5,3"/>
+                <TextBlock x:Name="tbTotalLength" Text="Общая длина: 7000 мм" Margin="5,3,5,3" 
+                           FontWeight="Bold" Foreground="DarkBlue"/>
+            </StackPanel>
+        </Border>
+
+        <GroupBox Grid.Row="2" Header="Отступ:" Margin="0,5,0,0">
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <TextBlock Text="Отступ:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox x:Name="txtOffset" Width="80" Text="1000"/>
+                <TextBlock Text=" мм" VerticalAlignment="Center" Margin="5,0,0,0"/>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Grid.Row="3" Header="Считать от:" Margin="0,5,0,0">
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <RadioButton x:Name="rbFromStart" Content="От начала" GroupName="Direction" 
+                             IsChecked="True" Margin="0,0,15,0"/>
+                <RadioButton x:Name="rbFromEnd" Content="От конца" GroupName="Direction"/>
+            </StackPanel>
+        </GroupBox>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" 
+                    HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="btnCancel" Content="Отмена" Width="80" Height="30" 
+                    Margin="5" Click="BtnCancel_Click"/>
+            <Button x:Name="btnOk" Content="Установить" Width="80" Height="30" 
+                    Margin="5" Click="BtnOk_Click" IsDefault="True" FontWeight="Bold"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -4,20 +4,21 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
 
-namespace PlugINPRO.UI.Windows.OV
+namespace PlugINPRO.UI.Windows.ES
 {
-    public partial class DuctFittingSettingsWindow : Window
+    public partial class CableTrayFittingByLengthSettingsWindow : Window
     {
         public FamilySymbol SelectedFamily { get; private set; }
         public double Spacing { get; private set; }
-        public double Offset { get; private set; } // Новое свойство для отступа
+        public double Offset { get; private set; }
         public bool UsePreviousFamily { get; private set; }
 
         private Document _document;
         private List<FamilySymbol> _availableFamilies;
 
-        public DuctFittingSettingsWindow(Document document)
+        public CableTrayFittingByLengthSettingsWindow(Document document)
         {
             InitializeComponent();
             _document = document;
@@ -28,13 +29,8 @@ namespace PlugINPRO.UI.Windows.OV
         {
             try
             {
-                // Загружаем доступные семейства
-                LoadAvailableFamilies();
-
-                // Показываем информацию о предыдущем выборе
+                LoadAvailableFamiliesWithFilter();
                 UpdatePreviousFamilyInfo();
-
-                // Устанавливаем фокус на поле ввода отступа
                 txtOffset.Focus();
                 txtOffset.SelectAll();
             }
@@ -45,32 +41,29 @@ namespace PlugINPRO.UI.Windows.OV
             }
         }
 
-        // В методе LoadAvailableFamilies() замените на:
-        private void LoadAvailableFamilies()
+        private void LoadAvailableFamiliesWithFilter()
         {
             try
             {
-                // Ищем семейства в категории DUCT FITTINGS
                 FilteredElementCollector collector = new FilteredElementCollector(_document)
                     .OfClass(typeof(FamilySymbol))
-                    .OfCategory(BuiltInCategory.OST_DuctFitting)
+                    .OfCategory(BuiltInCategory.OST_CableTrayFitting)
                     .WhereElementIsElementType();
 
                 _availableFamilies = collector.Cast<FamilySymbol>().ToList();
 
-                // ФИЛЬТР: оставляем только те, в названии которых есть "Крепление" или "Опора", а также "воздуховодов"
                 _availableFamilies = _availableFamilies
                     .Where(fs =>
                         fs.Family.Name.IndexOf("крепление", StringComparison.OrdinalIgnoreCase) >= 0 ||
                         fs.Name.IndexOf("крепление", StringComparison.OrdinalIgnoreCase) >= 0 ||
                         fs.Family.Name.IndexOf("опора", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        fs.Name.IndexOf("опора", StringComparison.OrdinalIgnoreCase) >= 0)
+                        fs.Name.IndexOf("опора", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        fs.Family.Name.IndexOf("support", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        fs.Name.IndexOf("support", StringComparison.OrdinalIgnoreCase) >= 0)
                     .ToList();
 
-                // Если нашли семейства
                 if (_availableFamilies.Count > 0)
                 {
-                    // Создаем список для ComboBox
                     var familyItems = _availableFamilies.Select(fs => new
                     {
                         FamilySymbol = fs,
@@ -82,9 +75,9 @@ namespace PlugINPRO.UI.Windows.OV
                 }
                 else
                 {
-                    tbInfo.Text = "В проекте не найдены семейства креплений для воздуховодов.\n" +
-                                 "Загрузите семейства в категории DUCT FITTINGS\n" +
-                                 "с названием, содержащим 'Крепление' или 'Опора'.";
+                    tbInfo.Text = "В проекте не найдены семейства опор для лотков.\n" +
+                                 "Загрузите семейства в категории CABLE TRAY FITTINGS\n" +
+                                 "с названием, содержащим 'Опора' или 'Support'.";
                     rbSelectNewFamily.IsEnabled = false;
                     rbPreviousFamily.IsChecked = true;
                 }
@@ -107,7 +100,6 @@ namespace PlugINPRO.UI.Windows.OV
                 name += $" : {symbol.Name}";
             }
 
-            // Обрезаем слишком длинные названия
             if (name.Length > 60)
                 name = name.Substring(0, 57) + "...";
 
@@ -116,22 +108,20 @@ namespace PlugINPRO.UI.Windows.OV
 
         private void UpdatePreviousFamilyInfo()
         {
-            if (App.SelectedSupportFamily != null && App.SelectedSupportFamily.IsValidObject)
+            if (App.SelectedCableTraySupportFamily != null && App.SelectedCableTraySupportFamily.IsValidObject)
             {
                 tbPreviousInfo.Text =
                     $"ПРЕДЫДУЩИЙ ВЫБОР:\n" +
-                    $"Семейство: {App.SelectedSupportFamily.Family.Name}\n" +
-                    $"Тип: {App.SelectedSupportFamily.Name}\n\n" +
+                    $"Семейство: {App.SelectedCableTraySupportFamily.Family.Name}\n" +
+                    $"Тип: {App.SelectedCableTraySupportFamily.Name}\n\n" +
                     $"Можно использовать повторно или выбрать новое.";
 
-                rbPreviousFamily.Content = $"Использовать '{App.SelectedSupportFamily.Family.Name}'";
-
-                // Находим предыдущее семейство в списке
+                rbPreviousFamily.Content = $"Использовать '{App.SelectedCableTraySupportFamily.Family.Name}'";
                 SelectPreviousFamilyInComboBox();
             }
             else
             {
-                tbPreviousInfo.Text = "Ранее выбранное крепление не найдено.\nНеобходимо выбрать новое крепление.";
+                tbPreviousInfo.Text = "Ранее выбранная опора не найдена.\nНеобходимо выбрать новую опору.";
                 rbPreviousFamily.IsEnabled = false;
                 rbSelectNewFamily.IsChecked = true;
             }
@@ -139,13 +129,12 @@ namespace PlugINPRO.UI.Windows.OV
 
         private void SelectPreviousFamilyInComboBox()
         {
-            if (_availableFamilies == null || App.SelectedSupportFamily == null)
+            if (_availableFamilies == null || App.SelectedCableTraySupportFamily == null)
                 return;
 
-            // Ищем индекс предыдущего семейства в списке
             for (int i = 0; i < _availableFamilies.Count; i++)
             {
-                if (_availableFamilies[i].Id == App.SelectedSupportFamily.Id)
+                if (_availableFamilies[i].Id == App.SelectedCableTraySupportFamily.Id)
                 {
                     cmbFamilies.SelectedIndex = i;
                     break;
@@ -160,8 +149,9 @@ namespace PlugINPRO.UI.Windows.OV
 
             try
             {
-                // Получаем выбранный шаг
-                if (rb2000.IsChecked == true)
+                if (rb1500.IsChecked == true)
+                    Spacing = 1500;
+                else if (rb2000.IsChecked == true)
                     Spacing = 2000;
                 else if (rb2500.IsChecked == true)
                     Spacing = 2500;
@@ -178,7 +168,6 @@ namespace PlugINPRO.UI.Windows.OV
                     Spacing = customSpacing;
                 }
 
-                // Получаем отступ
                 if (!double.TryParse(txtOffset.Text, out double offset))
                 {
                     MessageBox.Show("Введите корректное число для отступа!", "Ошибка",
@@ -187,11 +176,10 @@ namespace PlugINPRO.UI.Windows.OV
                 }
                 Offset = offset;
 
-                // Получаем выбранное семейство
                 if (rbPreviousFamily.IsChecked == true && rbPreviousFamily.IsEnabled)
                 {
                     UsePreviousFamily = true;
-                    SelectedFamily = App.SelectedSupportFamily;
+                    SelectedFamily = App.SelectedCableTraySupportFamily;
                 }
                 else if (rbSelectNewFamily.IsChecked == true)
                 {
@@ -199,7 +187,7 @@ namespace PlugINPRO.UI.Windows.OV
 
                     if (cmbFamilies.SelectedItem == null)
                     {
-                        MessageBox.Show("Выберите крепление из списка!", "Ошибка",
+                        MessageBox.Show("Выберите опору из списка!", "Ошибка",
                             MessageBoxButton.OK, MessageBoxImage.Warning);
                         return;
                     }
@@ -208,10 +196,9 @@ namespace PlugINPRO.UI.Windows.OV
                     SelectedFamily = selectedItem.FamilySymbol;
                 }
 
-                // Проверяем валидность семейства
                 if (SelectedFamily == null || !SelectedFamily.IsValidObject)
                 {
-                    MessageBox.Show("Выбранное крепление не доступно!", "Ошибка",
+                    MessageBox.Show("Выбранная опора не доступна!", "Ошибка",
                         MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
@@ -228,7 +215,6 @@ namespace PlugINPRO.UI.Windows.OV
 
         private bool ValidateInput()
         {
-            // Проверка шага
             if (rbCustom.IsChecked == true)
             {
                 if (string.IsNullOrWhiteSpace(txtCustomSpacing.Text))
@@ -258,7 +244,6 @@ namespace PlugINPRO.UI.Windows.OV
                 }
             }
 
-            // Проверка отступа
             if (!double.TryParse(txtOffset.Text, out double offset))
             {
                 MessageBox.Show("Отступ должен быть числом!", "Ошибка",
@@ -277,11 +262,10 @@ namespace PlugINPRO.UI.Windows.OV
                 return false;
             }
 
-            // Проверка выбора крепления
             if (rbSelectNewFamily.IsChecked == true &&
                 (cmbFamilies.Items.Count == 0 || cmbFamilies.SelectedItem == null))
             {
-                MessageBox.Show("Выберите крепление из списка или загрузите семейства!",
+                MessageBox.Show("Выберите опору из списка или загрузите семейства!",
                     "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
@@ -295,10 +279,8 @@ namespace PlugINPRO.UI.Windows.OV
             Close();
         }
 
-        // Событие для проверки ввода в реальном времени
-        private void txtCustomSpacing_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        private void txtCustomSpacing_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            // Разрешаем только цифры, точку и запятую
             foreach (char c in e.Text)
             {
                 if (!char.IsDigit(c) && c != '.' && c != ',')
@@ -309,9 +291,8 @@ namespace PlugINPRO.UI.Windows.OV
             }
         }
 
-        private void txtOffset_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        private void txtOffset_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            // Разрешаем только цифры, точку и запятую
             foreach (char c in e.Text)
             {
                 if (!char.IsDigit(c) && c != '.' && c != ',')
@@ -324,7 +305,6 @@ namespace PlugINPRO.UI.Windows.OV
 
         private void txtCustomSpacing_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
-            // Автоматически выбираем радио-кнопку "Другой шаг"
             if (!string.IsNullOrWhiteSpace(txtCustomSpacing.Text))
             {
                 rbCustom.IsChecked = true;

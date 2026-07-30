@@ -87,15 +87,35 @@ namespace PlugINPRO.Commands.VK
                 int copyCount = settingsWindow.Count;
                 double spacingHorizontalMm = settingsWindow.Spacing;
                 bool copyMultiple = settingsWindow.CopyMultiple;
+                bool projectToHorizontal = settingsWindow.ProjectToHorizontal;
 
-                // 6. Корректируем смещение с учетом уклона
-                double offsetAlongPipeMm = offsetHorizontalMm / slopeCorrection;
+                // 6. Корректируем смещение с учетом уклона (если галка включена)
+                double offsetAlongPipeMm;
+                double spacingAlongPipeMm = 0;
+
+                if (projectToHorizontal)
+                {
+                    // С учетом уклона (горизонтальная проекция)
+                    offsetAlongPipeMm = offsetHorizontalMm / slopeCorrection;
+                    if (copyMultiple && copyCount > 1)
+                    {
+                        spacingAlongPipeMm = spacingHorizontalMm / slopeCorrection;
+                    }
+                }
+                else
+                {
+                    // Без учета уклона (по оси трубы)
+                    offsetAlongPipeMm = offsetHorizontalMm;
+                    if (copyMultiple && copyCount > 1)
+                    {
+                        spacingAlongPipeMm = spacingHorizontalMm;
+                    }
+                }
+
                 double offsetAlongPipeFeet = UnitUtils.ConvertToInternalUnits(offsetAlongPipeMm, UnitTypeId.Millimeters);
-
                 double spacingAlongPipeFeet = 0;
                 if (copyMultiple && copyCount > 1)
                 {
-                    double spacingAlongPipeMm = spacingHorizontalMm / slopeCorrection;
                     spacingAlongPipeFeet = UnitUtils.ConvertToInternalUnits(spacingAlongPipeMm, UnitTypeId.Millimeters);
                 }
 
@@ -141,7 +161,12 @@ namespace PlugINPRO.Commands.VK
                     {
                         string direction = currentOffset > 0 ? "вперед" : "назад";
                         double maxOffsetMm = (currentOffset > 0 ?
-                            curveLength - currentDistance : currentDistance) * 304.8 * slopeCorrection;
+                            curveLength - currentDistance : currentDistance) * 304.8;
+
+                        if (projectToHorizontal)
+                        {
+                            maxOffsetMm *= slopeCorrection;
+                        }
 
                         if (i == 0)
                         {
@@ -202,10 +227,8 @@ namespace PlugINPRO.Commands.VK
                 {
                     trans.Start();
 
-                    // Получаем семейство опоры
                     FamilySymbol familySymbol = support.Symbol;
 
-                    // Активируем семейство если не активно
                     if (!familySymbol.IsActive)
                         familySymbol.Activate();
 
@@ -215,7 +238,6 @@ namespace PlugINPRO.Commands.VK
                     {
                         try
                         {
-                            // Создаем опору
                             FamilyInstance newSupport = doc.Create.NewFamilyInstance(
                                 point,
                                 familySymbol,
@@ -223,7 +245,6 @@ namespace PlugINPRO.Commands.VK
 
                             if (newSupport != null)
                             {
-                                // Устанавливаем параметры
                                 SetPipeParameters(newSupport,
                                     diameter,
                                     systemClassification?.AsString() ?? "",
@@ -231,7 +252,6 @@ namespace PlugINPRO.Commands.VK
                                     systemName?.AsString() ?? "",
                                     systemAbbreviation?.AsString() ?? "");
 
-                                // Поворачиваем опору
                                 RotateSupport(newSupport, point, rotationOrientation);
 
                                 placedCount++;
@@ -245,7 +265,6 @@ namespace PlugINPRO.Commands.VK
 
                     trans.Commit();
 
-                    // Формируем сообщение о результате
                     string directionText = offsetHorizontalMm > 0 ? "вперед" : "назад";
                     string verticalInfo = isVertical ? " (ВЕРТИКАЛЬНАЯ)" : "";
                     string slopeInfo = "";
@@ -254,6 +273,10 @@ namespace PlugINPRO.Commands.VK
                     {
                         slopeInfo = $"\nУклон трубы: {slope * 100:F1}%";
                     }
+
+                    string projectionInfo = settingsWindow.ProjectToHorizontal
+                        ? "с учетом уклона (горизонтальная проекция)"
+                        : "по оси трубы (без учета уклона)";
 
                     string multipleInfo = "";
                     if (copyMultiple && copyCount > 1)
@@ -264,7 +287,8 @@ namespace PlugINPRO.Commands.VK
 
                     TaskDialog.Show("Результат",
                         $"Создано опор: {placedCount} из {newPoints.Count}\n" +
-                        $"Начальное смещение: {Math.Abs(offsetHorizontalMm):F0} мм {directionText} (по горизонтали){verticalInfo}{slopeInfo}{multipleInfo}");
+                        $"Начальное смещение: {Math.Abs(offsetHorizontalMm):F0} мм {directionText} (по горизонтали)\n" +
+                        $"Расчет: {projectionInfo}{verticalInfo}{slopeInfo}{multipleInfo}");
                 }
 
                 return Result.Succeeded;
@@ -356,7 +380,7 @@ namespace PlugINPRO.Commands.VK
                     }
                 }
 
-                double maxDistanceFeet = 1.0 / 304.8; // 1 мм в футах
+                double maxDistanceFeet = 1.0 / 304.8;
                 if (closestPipe != null && minDistance < maxDistanceFeet)
                 {
                     return closestPipe;
