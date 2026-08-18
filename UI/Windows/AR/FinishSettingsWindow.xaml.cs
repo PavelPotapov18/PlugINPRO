@@ -54,17 +54,19 @@ namespace PlugINPRO.UI.Windows.AR
             if (sender is FrameworkElement fe &&
                 fe.Tag is WallFinishRule rule)
             {
-                rule.Layers.Add(new FinishLayer());
+                rule.AddLayer();
             }
         }
 
         private void DeleteLayer_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe &&
-                fe.Tag is WallFinishRule rule &&
-                rule.Layers.Count > 0)
+                fe.Tag is WallFinishRule rule)
             {
-                rule.Layers.Remove(rule.Layers.Last());
+                if (rule.Layers.Count <= 1)
+                    return;
+
+                rule.RemoveLastLayer();
             }
         }
 

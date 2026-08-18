@@ -59,6 +59,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
+    <Compile Include="Commands\AR\CreateRoomFinishCeilingCommand.cs" />
     <Compile Include="Commands\AR\CreateRoomFinishFloorsCommand.cs" />
     <Compile Include="Commands\AR\CreateRoomFinishWallsCommand.cs" />
     <Compile Include="Commands\AR\DoorsWindowsPrepCommand.cs" />
@@ -79,22 +80,28 @@
     <Compile Include="Commands\VK\PipeSupportAlignZCommand.cs" />
     <Compile Include="Commands\VK\PipeSupportCopyCommand.cs" />
     <Compile Include="Commands\VK\PipeSupportPlaceCommand.cs" />
-    <Compile Include="Services\AR\BoolToVisibilityConverter.cs" />
     <Compile Include="Services\AR\CsvExporter.cs" />
     <Compile Include="Services\AR\DoorOffsetMode.cs" />
+    <Compile Include="Services\AR\EnumToBooleanConverter.cs" />
     <Compile Include="Services\AR\FinishLayer.cs" />
     <Compile Include="Services\AR\FinishSegmentInfo.cs" />
     <Compile Include="Services\AR\FinishWallBuilder.cs" />
     <Compile Include="Services\AR\FinishWallsViewModel.cs" />
+    <Compile Include="Services\AR\CeilingSettingsViewModel.cs" />
     <Compile Include="Services\AR\FloorSettingsViewModel.cs" />
-    <Compile Include="Services\AR\MatchesAllFilterRules.cs" />
+    <Compile Include="Services\AR\RoomFilterMatcher.cs" />
     <Compile Include="Services\AR\RoomBoundaryService.cs" />
     <Compile Include="Services\AR\RoomFilterCondition.cs" />
+    <Compile Include="Services\AR\RoomFilterMatchMode.cs" />
     <Compile Include="Services\AR\RoomFilterRule.cs" />
+    <Compile Include="Services\AR\RoomCeilingBuilder.cs" />
     <Compile Include="Services\AR\RoomFloorBuilder.cs" />
     <Compile Include="Services\AR\WallFinishRule.cs" />
     <Compile Include="UI\Windows\AR\FinishSettingsWindow.xaml.cs">
       <DependentUpon>FinishSettingsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Windows\AR\CeilingSettingsWindow.xaml.cs">
+      <DependentUpon>CeilingSettingsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\Windows\AR\FloorSettingsWindow.xaml.cs">
       <DependentUpon>FloorSettingsWindow.xaml</DependentUpon>
@@ -190,6 +197,10 @@
     <Page Include="UI\Windows\AR\FinishSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\Windows\AR\CeilingSettingsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="UI\Windows\AR\FloorSettingsWindow.xaml">
       <SubType>Designer</SubType>
@@ -377,6 +388,15 @@
     <Analyzer Include="..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPI.dll" />
     <Analyzer Include="..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPIUI.dll" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\VK\pipecolor16.png" />
+    <EmbeddedResource Include="Resources\VK\pipecolor32.png" />
+    <EmbeddedResource Include="Resources\VK\WaterCalc16.png" />
+    <EmbeddedResource Include="Resources\VK\WaterCalc32.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\TS\slope16.png" />
+    <EmbeddedResource Include="Resources\TS\slope32.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -9,107 +9,127 @@
              Height="600" Width="900">
 
     <Window.Resources>
-        <local:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <local:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
     </Window.Resources>
     
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Режим -->
+        <!-- Режим выбора помещений -->
         <GroupBox Header="Режим обработки" Grid.Row="0" Margin="0,0,0,10">
             <StackPanel Margin="5">
-                <RadioButton Content="Все помещения проекта"
-                             IsChecked="{Binding IsAllRooms}"/>
                 <RadioButton Content="Выбранные помещения"
-                             IsChecked="{Binding IsSelectedRooms}"/>
+             GroupName="RoomProcessingMode"
+             IsChecked="{Binding IsSelectedRooms, Mode=TwoWay}"/>
                 <RadioButton Content="По параметрам помещений"
-                             IsChecked="{Binding IsFilteredRooms}"/>
-
-                <Border Margin="20,6,0,0"
-                        BorderBrush="#CCCCCC"
-                        BorderThickness="1"
-                        CornerRadius="3"
-                        Padding="6"
-                        Visibility="{Binding IsFilterPanelVisible,
-                            Converter={StaticResource BoolToVisibility}}">
-                    <StackPanel>
-                        <DataGrid x:Name="FilterGrid"
-                                      ItemsSource="{Binding FilterRules}"
-                                      AutoGenerateColumns="False"
-                                      CanUserAddRows="False"
-                                      MaxHeight="150"
-                                      Margin="0,0,0,6">
-
-                            <DataGrid.Columns>
-                                <!-- Параметр -->
-                                <DataGridTemplateColumn Header="Параметр" Width="*">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <ComboBox
-                                                ItemsSource="{Binding DataContext.RoomParameterNames,
-                                                    RelativeSource={RelativeSource AncestorType=Window}}"
-                                                Tag="{Binding}"
-                                                DisplayMemberPath="."
-                                                Loaded="FilterParamCombo_Loaded"
-                                                SelectionChanged="FilterParamCombo_SelectionChanged"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <!-- Условие -->
-                                <DataGridTemplateColumn Header="Условие" Width="130">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <ComboBox Tag="{Binding}"
-                                                      Loaded="FilterConditionCombo_Loaded"
-                                                      SelectionChanged="FilterConditionCombo_SelectionChanged">
-                                                <ComboBoxItem Content="Равно"
-                                                              Tag="{x:Static ar:RoomFilterCondition.Equals}"/>
-                                                <ComboBoxItem Content="Не равно"
-                                                              Tag="{x:Static ar:RoomFilterCondition.NotEquals}"/>
-                                                <ComboBoxItem Content="Содержит"
-                                                              Tag="{x:Static ar:RoomFilterCondition.Contains}"/>
-                                                <ComboBoxItem Content="Не содержит"
-                                                              Tag="{x:Static ar:RoomFilterCondition.NotContains}"/>
-                                            </ComboBox>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <!-- Значение -->
-                                <DataGridTemplateColumn Header="Значение" Width="120">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBox Tag="{Binding}"
-                                                     Text="{Binding Value, Mode=TwoWay,
-                                                         UpdateSourceTrigger=PropertyChanged}"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="+ Условие"
-                                        Width="90" Margin="0,0,6,0"
-                                        Click="AddFilterRule_Click"/>
-                            <Button Content="- Условие"
-                                        Width="90"
-                                        Click="DeleteFilterRule_Click"/>
-                        </StackPanel>
-
-                    </StackPanel>
-                </Border>
-
-
+             GroupName="RoomProcessingMode"
+             IsChecked="{Binding IsFilteredRooms, Mode=TwoWay}"/>
             </StackPanel>
         </GroupBox>
+        <!-- Панель фильтра -->
+        <Border Margin="20,6,0,0"
+        Grid.Row="1"
+        BorderBrush="#CCCCCC"
+        BorderThickness="1"
+        CornerRadius="3"
+        Padding="6"
+        Visibility="{Binding IsFilterPanelVisible, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <GroupBox Header="Логика фильтра"
+                  Margin="0,10,0,10">
+
+                    <StackPanel Margin="5">
+                        <RadioButton
+                    Content="Все условия"
+                    IsChecked="{Binding FilterMatchMode,
+                    Mode=TwoWay,
+                    Converter={StaticResource EnumToBooleanConverter},
+                    ConverterParameter=All}"/>
+
+                        <RadioButton
+                    Content="Хотя бы одно условие"
+                    IsChecked="{Binding FilterMatchMode,
+                    Mode=TwoWay,
+                    Converter={StaticResource EnumToBooleanConverter},
+                    ConverterParameter=Any}"/>
+
+                    </StackPanel>
+
+                </GroupBox>
+
+                <DataGrid x:Name="FilterGrid"
+                  ItemsSource="{Binding FilterRules}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  MaxHeight="150"
+                  Margin="0,0,0,6">
+                    <DataGrid.Columns>
+
+                        <DataGridTemplateColumn Header="Параметр" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox
+                                ItemsSource="{Binding DataContext.RoomParameterNames,
+                                    RelativeSource={RelativeSource AncestorType=Window}}"
+                                Tag="{Binding}"
+                                DisplayMemberPath="."
+                                Loaded="FilterParamCombo_Loaded"
+                                SelectionChanged="FilterParamCombo_SelectionChanged"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Условие" Width="130">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox Tag="{Binding}"
+                                      Loaded="FilterConditionCombo_Loaded"
+                                      SelectionChanged="FilterConditionCombo_SelectionChanged">
+                                        <ComboBoxItem Content="Равно"
+                                              Tag="{x:Static ar:RoomFilterCondition.Equals}"/>
+                                        <ComboBoxItem Content="Не равно"
+                                              Tag="{x:Static ar:RoomFilterCondition.NotEquals}"/>
+                                        <ComboBoxItem Content="Содержит"
+                                              Tag="{x:Static ar:RoomFilterCondition.Contains}"/>
+                                        <ComboBoxItem Content="Не содержит"
+                                              Tag="{x:Static ar:RoomFilterCondition.NotContains}"/>
+                                    </ComboBox>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Значение" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding Value, Mode=TwoWay,
+                                         UpdateSourceTrigger=PropertyChanged}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="+ Условие"
+                    Width="90" Margin="0,0,6,0"
+                    Click="AddFilterRule_Click"/>
+                    <Button Content="- Условие"
+                    Width="90"
+                    Click="DeleteFilterRule_Click"/>
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
 
         <!-- Правила -->
-        <DataGrid Grid.Row="1"
+        <DataGrid Grid.Row="2"
                   x:Name="RulesGrid"
                   ItemsSource="{Binding Rules}"
                   AutoGenerateColumns="False"
@@ -229,7 +249,7 @@
         </DataGrid>
 
         <!-- Кнопки правил -->
-        <StackPanel Grid.Row="2"
+        <StackPanel Grid.Row="3"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,10,0,0">

@@ -71,7 +71,11 @@ namespace PlugINPRO.Commands.AR
             if (wnd.ViewModel.IsFilteredRooms)
             {
                 rooms = allRooms
-                    .Where(r => MatchesAllFilterRules.Match(r, wnd.ViewModel.FilterRules.ToList()))
+                    .Where(r =>
+                        RoomFilterMatcher.Match(
+                            r,
+                            wnd.ViewModel.FilterRules.ToList(),
+                            wnd.ViewModel.FilterMatchMode))
                     .ToList();
             }
             else

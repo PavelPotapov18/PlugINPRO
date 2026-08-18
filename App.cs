@@ -328,6 +328,18 @@ namespace PlugINPRO
                 ToolTip = "Отделка пола по помещениям"
             };
 
+            PushButtonData roomCeilingButtonData = new PushButtonData(
+                "RoomCeilingFinish",
+                "Отделка потолков по помещениям",
+                assemblyPath,
+                "PlugINPRO.Commands.AR.CreateRoomFinishCeilingCommand"
+            )
+            {
+                LargeImage = LoadImage("PlugINPRO.Resources.AR.FloorFinish32.png"),
+                Image = LoadImage("PlugINPRO.Resources.AR.FloorFinish16.png"),
+                ToolTip = "Созданием потолков по помещениям"
+            };
+
             PulldownButtonData finishingPullData = new PulldownButtonData("FinishTools", "Отделка")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.AR.Finish32.png"),
@@ -337,13 +349,15 @@ namespace PlugINPRO
             PulldownButton finishingPullButton = arPanel.AddItem(finishingPullData) as PulldownButton;
             finishingPullButton.AddPushButton(roomWallFaceButtonData);
             finishingPullButton.AddPushButton(roomFloorButtonData);
+            finishingPullButton.AddPushButton(roomCeilingButtonData);
+
 
             // ============================================
             // 🆕 ПАНЕЛЬ ОВ (Отопление и Вентиляция) - КОНТЕЙНЕР
             // ============================================
             RibbonPanel ovPanel = application.CreateRibbonPanel("INPRO", "ОВ");
 
-            PulldownButtonData ductSupportPullData = new PulldownButtonData("DuctSupports", "Опоры воздуховодов")
+            PulldownButtonData ductSupportPullData = new PulldownButtonData("DuctSupports", "Опоры\nвоздуховодов")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.OV.DuctFitting32.png"),
                 ToolTip = "Инструменты по расстановке опор воздуховодов"
@@ -389,7 +403,7 @@ namespace PlugINPRO
             // ============================================
             RibbonPanel eomPanel = application.CreateRibbonPanel("INPRO", "ЭОМ");
 
-            PulldownButtonData cableTraySupportPullData = new PulldownButtonData("CableTraySupports", "Опоры лотков")
+            PulldownButtonData cableTraySupportPullData = new PulldownButtonData("CableTraySupports", "Опоры\nлотков")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.ES.CableTrayFitting32.png"),
                 ToolTip = "Инструменты по расстановке опор кабельных лотков"
@@ -485,7 +499,7 @@ namespace PlugINPRO
             };
 
             // Контейнер ВК
-            PulldownButtonData pipeSupportPullData = new PulldownButtonData("PipeSupports", "Опоры трубопроводов")
+            PulldownButtonData pipeSupportPullData = new PulldownButtonData("PipeSupports", "Опоры\nтрубопроводов")
             {
                 LargeImage = LoadImage("PlugINPRO.Resources.VK.PipeFitting32.png"),
                 ToolTip = "Инструменты по расстановке опор трубопроводов"
@@ -508,8 +522,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.VK.PaintCalculatorCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.VK.Paint32.png"),
-                Image = LoadImage("PlugINPRO.Resources.VK.Paint16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.pipecolor32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.pipecolor16.png"),
                 ToolTip = "Расчет расхода краски для системы ВК"
             };
             vkPanel.AddItem(paintVKButtonData);
@@ -524,8 +538,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.VK.HydraulicCalculateCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),
-                Image = LoadImage("PlugINPRO.Resources.VK.Hydraulic16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.WaterCalc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.WaterCalc16.png"),
                 ToolTip = "Гидравлический расчёт выбранной системы"
             };
 
@@ -536,14 +550,14 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.VK.HydraulicAddParamsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.VK.HydraulicParams32.png"),
-                Image = LoadImage("PlugINPRO.Resources.VK.HydraulicParams16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.WaterCalc32.png"),
+                Image = LoadImage("PlugINPRO.Resources.VK.WaterCalc16.png"),
                 ToolTip = "Добавить параметры для гидравлического расчёта"
             };
 
             PulldownButtonData hydraulicPullData = new PulldownButtonData("HydraulicTools", "Гидравлический\nрасчёт")
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.VK.Hydraulic32.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.VK.WaterCalc32.png"),
                 ToolTip = "Инструменты гидравлического расчёта"
             };
 
@@ -589,8 +603,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.TS.DimensionToGridsCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.dimensiontogrids32.png"),
-                Image = LoadImage("PlugINPRO.Resources.dimensiontogrids16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.Common.grids32.png"),
+                Image = LoadImage("PlugINPRO.Resources.Commongrids16.png"),
                 ToolTip = "Размер от трубы/фитинга до пересечения осей"
             };
             tsPanel.AddItem(dimensionToGridsButtonData);
@@ -602,8 +616,8 @@ namespace PlugINPRO
                 "PlugINPRO.Commands.VK.PipeSlopeTriangleCommand"
             )
             {
-                LargeImage = LoadImage("PlugINPRO.Resources.TS.triangle32.png"),
-                Image = LoadImage("PlugINPRO.Resources.TS.triangle16.png"),
+                LargeImage = LoadImage("PlugINPRO.Resources.TS.slope32.png"),
+                Image = LoadImage("PlugINPRO.Resources.TS.slope16.png"),
                 ToolTip = "Построение треугольника уклона трубы"
             };
             tsPanel.AddItem(pipeSlopeTriangleButtonData);

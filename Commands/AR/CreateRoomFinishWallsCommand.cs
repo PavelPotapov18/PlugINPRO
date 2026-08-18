@@ -76,18 +76,10 @@ namespace PlugINPRO.Commands.AR
             }
             TaskDialog.Show("DEBUG Rules", debug);
 
-            List<Room> rooms = new List<Room>(); ;
+            List<Room> rooms = new List<Room>();
 
-            if (vm.IsAllRooms)
-            {
-                rooms = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_Rooms)
-                    .WhereElementIsNotElementType()
-                    .Cast<Room>()
-                    .Where(r => r.Area > 0)
-                    .ToList();
-            }
-            else if(vm.IsSelectedRooms)
+            
+            if(vm.IsSelectedRooms)
             {
                 IList<Reference> refs = uidoc.Selection.PickObjects(
                     ObjectType.Element,
@@ -105,7 +97,7 @@ namespace PlugINPRO.Commands.AR
                     .WhereElementIsNotElementType()
                     .Cast<Room>()
                     .Where(r => r.Area > 0)
-                    .Where(r => MatchesAllFilterRules.Match(r, vm.FilterRules.ToList()))
+                    .Where(r => RoomFilterMatcher.Match(r, vm.FilterRules.ToList(),vm.FilterMatchMode))
                     .ToList();
             }
 

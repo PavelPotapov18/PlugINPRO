@@ -12,45 +12,119 @@ namespace PlugINPRO.Services.AR
         public ObservableCollection<WallType> WallTypes { get; set; }
             = new ObservableCollection<WallType>();
 
-        // Список параметров помещений для выбора в фильтре
-        public ObservableCollection<string> RoomParameterNames { get; set; }
-            = new ObservableCollection<string>();
 
-        // Правила фильтрации помещений
-        public ObservableCollection<RoomFilterRule> FilterRules { get; set; }
-            = new ObservableCollection<RoomFilterRule>();
+        // =========================================================
+        // РЕЖИМ ОБРАБОТКИ ПОМЕЩЕНИЙ
+        // =========================================================
 
-        private bool _isAllRooms = true;
-        private bool _isSelectedRooms;
-        private bool _isFilteredRooms;
-
-        public bool IsAllRooms
-        {
-            get => _isAllRooms;
-            set { _isAllRooms = value; OnPropertyChanged(nameof(IsAllRooms)); }
-        }
+        private bool _isSelectedRooms = true;
+        private bool _isFilteredRooms = false;
 
         public bool IsSelectedRooms
         {
             get => _isSelectedRooms;
-            set { _isSelectedRooms = value; OnPropertyChanged(nameof(IsSelectedRooms)); }
+
+            set
+            {
+                if (_isSelectedRooms == value)
+                    return;
+
+                _isSelectedRooms = value;
+
+                // Если выбрали помещения вручную,
+                // фильтрация должна быть выключена
+                if (value)
+                {
+                    _isFilteredRooms = false;
+
+                    OnPropertyChanged(
+                        nameof(IsFilteredRooms));
+
+                    OnPropertyChanged(
+                        nameof(IsFilterPanelVisible));
+                }
+
+                OnPropertyChanged(
+                    nameof(IsSelectedRooms));
+            }
         }
 
         public bool IsFilteredRooms
         {
             get => _isFilteredRooms;
+
             set
             {
+                if (_isFilteredRooms == value)
+                    return;
+
                 _isFilteredRooms = value;
-                OnPropertyChanged(nameof(IsFilteredRooms));
-                OnPropertyChanged(nameof(IsFilterPanelVisible));
+
+                // Если включили фильтр,
+                // ручной выбор помещений выключаем
+                if (value)
+                {
+                    _isSelectedRooms = false;
+
+                    OnPropertyChanged(
+                        nameof(IsSelectedRooms));
+                }
+
+                OnPropertyChanged(
+                    nameof(IsFilteredRooms));
+
+                OnPropertyChanged(
+                    nameof(IsFilterPanelVisible));
             }
         }
 
-        public bool IsFilterPanelVisible => _isFilteredRooms;
+        public bool IsFilterPanelVisible
+        {
+            get => IsFilteredRooms;
+        }
+
+        // =========================================================
+        // ФИЛЬТР
+        // =========================================================
+
+        public ObservableCollection<string> RoomParameterNames { get; }
+            = new ObservableCollection<string>();
+
+        public ObservableCollection<RoomFilterRule> FilterRules { get; }
+            = new ObservableCollection<RoomFilterRule>();
+
+
+        private RoomFilterMatchMode _filterMatchMode =
+            RoomFilterMatchMode.All;
+
+        public RoomFilterMatchMode FilterMatchMode
+        {
+            get => _filterMatchMode;
+
+            set
+            {
+                if (_filterMatchMode == value)
+                    return;
+
+                _filterMatchMode = value;
+
+                OnPropertyChanged(
+                    nameof(FilterMatchMode));
+            }
+        }
+
+        // =========================================================
+        // PROPERTY CHANGED
+        // =========================================================
 
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string name)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        protected void OnPropertyChanged(
+            string propertyName)
+        {
+            PropertyChanged?.Invoke(
+                this,
+                new PropertyChangedEventArgs(propertyName));
+        }
     }
 }

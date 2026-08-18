@@ -47,7 +47,7 @@ namespace PlugINPRO.Commands.AR
 
                 foreach (Wall wall in walls)
                 {
-                    if (wall.WallType.Function != WallFunction.Exterior)
+                    if (wall.WallType.Function != WallFunction.Exterior || wall.WallType.Name.Contains("Отделка"))
                         continue;
 
                     Parameter wallOrientParam = wall.LookupParameter("INP_Ориентация по сторонам света");

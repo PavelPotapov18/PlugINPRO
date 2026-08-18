@@ -6,61 +6,196 @@ namespace PlugINPRO.Services.AR
 {
     public class FloorSettingsViewModel : INotifyPropertyChanged
     {
-        public ObservableCollection<FloorType> FloorTypes { get; set; }
+        // =========================================================
+        // ПОЛЫ
+        // =========================================================
+
+        public ObservableCollection<FloorType> FloorTypes { get; }
             = new ObservableCollection<FloorType>();
 
-        public FloorType SelectedFloorType { get; set; }
+        private FloorType _selectedFloorType;
 
-        // Режим выбора помещений
+        public FloorType SelectedFloorType
+        {
+            get => _selectedFloorType;
+            set
+            {
+                if (_selectedFloorType == value)
+                    return;
+
+                _selectedFloorType = value;
+                OnPropertyChanged(nameof(SelectedFloorType));
+            }
+        }
+
+
+        // =========================================================
+        // РЕЖИМ ОБРАБОТКИ ПОМЕЩЕНИЙ
+        // =========================================================
+
         private bool _isSelectedRooms = true;
-        private bool _isFilteredRooms;
+        private bool _isFilteredRooms = false;
 
         public bool IsSelectedRooms
         {
             get => _isSelectedRooms;
-            set { _isSelectedRooms = value; OnPropertyChanged(nameof(IsSelectedRooms)); }
+
+            set
+            {
+                if (_isSelectedRooms == value)
+                    return;
+
+                _isSelectedRooms = value;
+
+                // Если выбрали помещения вручную,
+                // фильтрация должна быть выключена
+                if (value)
+                {
+                    _isFilteredRooms = false;
+
+                    OnPropertyChanged(
+                        nameof(IsFilteredRooms));
+
+                    OnPropertyChanged(
+                        nameof(IsFilterPanelVisible));
+                }
+
+                OnPropertyChanged(
+                    nameof(IsSelectedRooms));
+            }
         }
 
         public bool IsFilteredRooms
         {
             get => _isFilteredRooms;
+
             set
             {
+                if (_isFilteredRooms == value)
+                    return;
+
                 _isFilteredRooms = value;
-                OnPropertyChanged(nameof(IsFilteredRooms));
-                OnPropertyChanged(nameof(IsFilterPanelVisible));
+
+                // Если включили фильтр,
+                // ручной выбор помещений выключаем
+                if (value)
+                {
+                    _isSelectedRooms = false;
+
+                    OnPropertyChanged(
+                        nameof(IsSelectedRooms));
+                }
+
+                OnPropertyChanged(
+                    nameof(IsFilteredRooms));
+
+                OnPropertyChanged(
+                    nameof(IsFilterPanelVisible));
             }
         }
-        public bool IsFilterPanelVisible => _isFilteredRooms;
 
-        // Параметры помещений для фильтра
-        public ObservableCollection<string> RoomParameterNames { get; set; }
+        public bool IsFilterPanelVisible
+        {
+            get => IsFilteredRooms;
+        }
+
+
+        // =========================================================
+        // ФИЛЬТР
+        // =========================================================
+
+        public ObservableCollection<string> RoomParameterNames { get; }
             = new ObservableCollection<string>();
 
-        public ObservableCollection<RoomFilterRule> FilterRules { get; set; }
+        public ObservableCollection<RoomFilterRule> FilterRules { get; }
             = new ObservableCollection<RoomFilterRule>();
 
 
-        private DoorOffsetMode _doorOffsetMode = DoorOffsetMode.None;
-        public DoorOffsetMode DoorOffsetMode
+        private RoomFilterMatchMode _filterMatchMode =
+            RoomFilterMatchMode.All;
+
+        public RoomFilterMatchMode FilterMatchMode
         {
-            get => _doorOffsetMode;
+            get => _filterMatchMode;
+
             set
             {
-                _doorOffsetMode = value;
-                OnPropertyChanged(nameof(DoorOffsetMode));
-                OnPropertyChanged(nameof(IsCustomOffset));
+                if (_filterMatchMode == value)
+                    return;
+
+                _filterMatchMode = value;
+
+                OnPropertyChanged(
+                    nameof(FilterMatchMode));
             }
         }
 
-        // Видимость поля ввода — только для Custom
-        public bool IsCustomOffset => _doorOffsetMode == DoorOffsetMode.Custom;
 
-        // Значение смещения в мм (для Custom)
-        public double CustomOffsetMm { get; set; } = 0;
+        // =========================================================
+        // ДВЕРИ
+        // =========================================================
+
+        private DoorOffsetMode _doorOffsetMode =
+            DoorOffsetMode.None;
+
+        public DoorOffsetMode DoorOffsetMode
+        {
+            get => _doorOffsetMode;
+
+            set
+            {
+                if (_doorOffsetMode == value)
+                    return;
+
+                _doorOffsetMode = value;
+
+                OnPropertyChanged(
+                    nameof(DoorOffsetMode));
+
+                OnPropertyChanged(
+                    nameof(IsCustomOffset));
+            }
+        }
+
+        public bool IsCustomOffset =>
+            DoorOffsetMode == DoorOffsetMode.Custom;
+
+
+        // =========================================================
+        // СМЕЩЕНИЕ
+        // =========================================================
+
+        private double _customOffsetMm;
+
+        public double CustomOffsetMm
+        {
+            get => _customOffsetMm;
+
+            set
+            {
+                if (_customOffsetMm == value)
+                    return;
+
+                _customOffsetMm = value;
+
+                OnPropertyChanged(
+                    nameof(CustomOffsetMm));
+            }
+        }
+
+
+        // =========================================================
+        // PROPERTY CHANGED
+        // =========================================================
 
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string name)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        protected void OnPropertyChanged(
+            string propertyName)
+        {
+            PropertyChanged?.Invoke(
+                this,
+                new PropertyChangedEventArgs(propertyName));
+        }
     }
 }
