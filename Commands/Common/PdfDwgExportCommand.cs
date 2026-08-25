@@ -170,6 +170,7 @@ namespace PlugINPRO.Commands.Common
                     predefinedSetup
                     );
             }
+            TaskDialog.Show("Export", "Экспорт в форматы PDF и DWG успешно завершен!");
             return Result.Succeeded;
         }
         

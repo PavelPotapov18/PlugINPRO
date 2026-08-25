@@ -18,22 +18,33 @@ namespace PlugINPRO.Commands.AR
             ref string message,
             ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            UIDocument uidoc =
+                commandData.Application.ActiveUIDocument;
+
+            Document doc =
+                uidoc.Document;
 
 
-            // Диалог сохранения файла
-            SaveFileDialog dlg = new SaveFileDialog
-            {
-                Title = "Сохранить CSV",
-                Filter = "CSV файлы (*.csv)|*.csv",
-                FileName = "export.csv"
-            };
+            // ============================================================
+            // ДИАЛОГ СОХРАНЕНИЯ
+            // ============================================================
+
+            SaveFileDialog dlg =
+                new SaveFileDialog
+                {
+                    Title = "Сохранить CSV",
+                    Filter = "CSV файлы (*.csv)|*.csv",
+                    FileName = "export.csv"
+                };
 
             if (dlg.ShowDialog() != true)
                 return Result.Cancelled;
 
-            // Заголовки
+
+            // ============================================================
+            // ЗАГОЛОВКИ CSV
+            // ============================================================
+
             var headers = new[]
             {
                 "№ пом.",
@@ -43,195 +54,737 @@ namespace PlugINPRO.Commands.AR
                 "Ориентация по сторонам света"
             };
 
-            List<Room> rooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType()
-                .Cast<Room>()
-                .Where(r => r.Area > 0)
-                .OrderBy(r =>
-                {
-                    string num = r.get_Parameter(BuiltInParameter.ROOM_NUMBER).AsString() ?? "";
-                    return num.Split('.')
-                              .Select(p => int.TryParse(p, out int n) ? n : 0)
-                              .ToArray();
-                }, new IntArrayComparer())
-                .ToList();
 
-            List<Wall> walls = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Walls)
-                .WhereElementIsNotElementType()
-                .Cast<Wall>()
-                .Where(w => w.WallType.Name.Contains("Отделка_ЭЭ"))
-                .ToList();
+            // ============================================================
+            // ПОМЕЩЕНИЯ
+            // ============================================================
 
-            List<Floor> floors = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Floors)
-                .WhereElementIsNotElementType()
-                .Cast<Floor>()
-                .ToList();
+            List<Room> rooms =
+                new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType()
+                    .Cast<Room>()
+                    .Where(r => r.Area > 0)
+                    .OrderBy(
+                        r =>
+                        {
+                            string num =
+                                r.get_Parameter(
+                                    BuiltInParameter.ROOM_NUMBER)
+                                    ?.AsString() ?? "";
 
-            List<Element> doors = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Doors)
-                .WhereElementIsNotElementType()
-                .ToList();
+                            return num
+                                .Split('.')
+                                .Select(
+                                    p => int.TryParse(
+                                        p,
+                                        out int n)
+                                        ? n
+                                        : 0)
+                                .ToArray();
+                        },
+                        new IntArrayComparer())
+                    .ToList();
 
-            List<Element> windows = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Windows)
-                .WhereElementIsNotElementType()
-                .ToList();
 
-            List<List<string>> rows = new List<List<string>>();
+            // ============================================================
+            // СТЕНЫ ОТДЕЛКИ
+            // ============================================================
 
-            foreach(Room room in rooms)
+            List<Wall> walls =
+                new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Walls)
+                    .WhereElementIsNotElementType()
+                    .Cast<Wall>()
+                    .Where(
+                        w =>
+                        w.WallType != null &&
+                        w.WallType.Name.Contains("Отделка_ЭЭ"))
+                    .ToList();
+
+
+            // ============================================================
+            // ПОЛЫ
+            // ============================================================
+
+            List<Floor> floors =
+                new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Floors)
+                    .WhereElementIsNotElementType()
+                    .Cast<Floor>()
+                    .ToList();
+
+
+            // ============================================================
+            // ДВЕРИ
+            // ============================================================
+
+            List<Element> doors =
+                new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Doors)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+
+
+            // ============================================================
+            // ОКНА
+            // ============================================================
+
+            List<Element> windows =
+                new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Windows)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+
+
+            // ============================================================
+            // СТРОКИ CSV
+            // ============================================================
+
+            List<List<string>> rows =
+                new List<List<string>>();
+
+
+            // ============================================================
+            // ОБРАБОКА ПОМЕЩЕНИЙ
+            // ============================================================
+
+            foreach (Room room in rooms)
             {
-                string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME).AsString();
-                string roomNumber = room.get_Parameter(BuiltInParameter.ROOM_NUMBER).AsString();
-                string roomWall = $"{roomNumber} {roomName}";
+                string roomName =
+                    room.get_Parameter(
+                        BuiltInParameter.ROOM_NAME)
+                        ?.AsString() ?? "";
 
-                List<string> roomRow = new List<string> { $"=\"{roomNumber}\"", roomName, "", "", ""};
+                string roomNumber =
+                    room.get_Parameter(
+                        BuiltInParameter.ROOM_NUMBER)
+                        ?.AsString() ?? "";
+
+                string roomWall =
+                    $"{roomNumber} {roomName}";
+
+
+                // --------------------------------------------------------
+                // Строка помещения
+                // --------------------------------------------------------
+
+                List<string> roomRow =
+                    new List<string>
+                    {
+                        $"=\"{roomNumber}\"",
+                        roomName,
+                        "",
+                        "",
+                        ""
+                    };
+
                 rows.Add(roomRow);
 
-                double roomLoc = UnitUtils.ConvertFromInternalUnits(((LocationPoint)(room.Location)).Point.Z, UnitTypeId.Meters);
-                string sign = roomLoc > 0 ? "+" : roomLoc < 0 ? "-" : "";
-                string roomLocStr = sign + Math.Abs(roomLoc).ToString("F3").Replace(",", ".");
-                
 
-                double roomArea = UnitUtils.ConvertFromInternalUnits(room.Area, UnitTypeId.SquareMeters);
-                string roomAreaStr = roomArea.ToString("F2").Replace(',', '.');
+                // --------------------------------------------------------
+                // Отметка помещения
+                // --------------------------------------------------------
+
+                double roomLoc =
+                    UnitUtils.ConvertFromInternalUnits(
+                        ((LocationPoint)room.Location).Point.Z,
+                        UnitTypeId.Meters);
+
+                string sign =
+                    roomLoc > 0
+                        ? "+"
+                        : roomLoc < 0
+                            ? "-"
+                            : "";
+
+                string roomLocStr =
+                    sign +
+                    Math.Abs(roomLoc)
+                        .ToString("F3")
+                        .Replace(",", ".");
 
 
-                string roofInfo = room.LookupParameter("ADSK_Примечание").AsString();
-                if(!string.IsNullOrEmpty(roofInfo))
+                // --------------------------------------------------------
+                // Площадь помещения
+                // --------------------------------------------------------
+
+                double roomArea =
+                    UnitUtils.ConvertFromInternalUnits(
+                        room.Area,
+                        UnitTypeId.SquareMeters);
+
+                string roomAreaStr =
+                    roomArea
+                        .ToString("F2")
+                        .Replace(',', '.');
+
+
+                // --------------------------------------------------------
+                // Примечание помещения
+                // --------------------------------------------------------
+
+                string roofInfo =
+                    room.LookupParameter(
+                        "ADSK_Примечание")
+                        ?.AsString();
+
+
+                if (!string.IsNullOrEmpty(roofInfo))
                 {
-                    List<string> roofRow = new List<string> { "", roomLocStr, roofInfo, roomAreaStr, "-" };
+                    List<string> roofRow =
+                        new List<string>
+                        {
+                            "",
+                            roomLocStr,
+                            roofInfo,
+                            roomAreaStr,
+                            "-"
+                        };
+
                     rows.Add(roofRow);
                 }
-                
-                
+
+
+                // ========================================================
+                // ПОЛЫ
+                // ========================================================
+
                 foreach (Floor floor in floors)
                 {
-                    string floorName = floor.FloorType.Name;
+                    string floorName =
+                        floor.FloorType?.Name ?? "";
 
-                    double floorArea = UnitUtils.ConvertFromInternalUnits(floor.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED).AsDouble(), UnitTypeId.SquareMeters);
-                    string floorAreaStr = floorArea.ToString("F2").Replace(',', '.');
 
-                    string floorRoomParam = floor.LookupParameter("Помещение Имя").AsString();
+                    Parameter areaParam =
+                        floor.get_Parameter(
+                            BuiltInParameter.HOST_AREA_COMPUTED);
+
+                    if (areaParam == null)
+                        continue;
+
+
+                    double floorArea =
+                        UnitUtils.ConvertFromInternalUnits(
+                            areaParam.AsDouble(),
+                            UnitTypeId.SquareMeters);
+
+
+                    string floorAreaStr =
+                        floorArea
+                            .ToString("F2")
+                            .Replace(',', '.');
+
+
+                    string floorRoomParam =
+                        floor.LookupParameter(
+                            "Помещение Имя")
+                            ?.AsString();
+
+
                     if (floorRoomParam != roomWall)
                         continue;
-                    
-                    List<string> floorRow = new List<string> { "", roomLocStr, floorName, floorAreaStr, "-" };
+
+
+                    List<string> floorRow =
+                        new List<string>
+                        {
+                            "",
+                            roomLocStr,
+                            floorName,
+                            floorAreaStr,
+                            "-"
+                        };
+
                     rows.Add(floorRow);
                 }
 
-                ISet<string> usedOrientations = new HashSet<string>();
+
+                // ========================================================
+                // СТЕНЫ
+                // ========================================================
+
+                ISet<string> usedOrientations =
+                    new HashSet<string>();
+
+
+                // --------------------------------------------------------
+                // Получаем стены только текущего помещения
+                // --------------------------------------------------------
+
+                List<Wall> roomWalls =
+                    new List<Wall>();
+
 
                 foreach (Wall wall in walls)
                 {
-                    string wallRoomParam = wall.LookupParameter("Помещение Имя").AsString();
+                    string wallRoomParam =
+                        wall.LookupParameter(
+                            "Помещение Имя")
+                            ?.AsString();
+
+
+                    if (string.IsNullOrWhiteSpace(
+                            wallRoomParam))
+                    {
+                        continue;
+                    }
+
+
                     if (wallRoomParam != roomWall)
                         continue;
 
-                    string wallOrientation = wall.LookupParameter("INP_Ориентация по сторонам света").AsString();
 
-                    double wallArea = UnitUtils.ConvertFromInternalUnits(wall.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED).AsDouble(), UnitTypeId.SquareMeters);
-                    string wallAreaStr = wallArea.ToString("F2").Replace(',', '.');
+                    roomWalls.Add(wall);
+                }
 
-                    string wallFunction = "";
-                    if (wall.WallType.Name.Contains("Цоколь"))
-                        wallFunction = "Цоколь";
-                    else if (wall.WallType.Name.Contains("Сэндвич"))
-                        wallFunction = "Сэндвич-панель";
-                    else
+
+                // ========================================================
+                // ГРУППИРОВКА
+                //
+                // Ключ:
+                //
+                // 1. Реальный типоразмер стены
+                // 2. Ориентация
+                //
+                // Например:
+                //
+                // ADSK_Наружная_Цоколь_260 + C
+                // ADSK_Наружная_Цоколь_260 + C
+                //
+                // объединятся.
+                //
+                // Но:
+                //
+                // ADSK_Наружная_Цоколь_260 + C
+                // ADSK_Наружная_Цоколь_300 + C
+                //
+                // останутся разными группами.
+                // ========================================================
+
+                var wallGroups =
+                    roomWalls
+                        .Select(
+                            wall =>
+                            {
+                                string orientation =
+                                    wall.LookupParameter(
+                                        "INP_Ориентация по сторонам света")
+                                        ?.AsString();
+
+
+                                orientation =
+                                    NormalizeOrientation(
+                                        orientation);
+
+
+                                string wallFunction =
+                                    GetWallFunction(
+                                        wall);
+
+
+                                return new
+                                {
+                                    Wall = wall,
+
+                                    WallTypeName =
+                                        wall.WallType?.Name ?? "",
+
+                                    WallFunction =
+                                        wallFunction,
+
+                                    Orientation =
+                                        orientation
+                                };
+                            })
+                        .Where(
+                            x =>
+                            !string.IsNullOrEmpty(
+                                x.WallFunction))
+                        .GroupBy(
+                            x =>
+                            new
+                            {
+                                x.WallTypeName,
+                                x.Orientation
+                            })
+                        .ToList();
+
+
+                // ========================================================
+                // ОБРАБАТЫВАЕМ ГРУППЫ СТЕН
+                // ========================================================
+
+                foreach (var group in wallGroups)
+                {
+                    double totalArea = 0;
+
+
+                    // ----------------------------------------------------
+                    // Складываем площади всех стен группы
+                    // ----------------------------------------------------
+
+                    foreach (var item in group)
+                    {
+                        Parameter wallAreaParam =
+                            item.Wall.get_Parameter(
+                                BuiltInParameter.HOST_AREA_COMPUTED);
+
+
+                        if (wallAreaParam == null)
+                            continue;
+
+
+                        double wallArea =
+                            UnitUtils.ConvertFromInternalUnits(
+                                wallAreaParam.AsDouble(),
+                                UnitTypeId.SquareMeters);
+
+
+                        totalArea += wallArea;
+                    }
+
+
+                    if (totalArea <= 0)
                         continue;
 
-                    List<string> wallRow = new List<string>{ "", roomLocStr, wallFunction, wallAreaStr, wallOrientation };
+
+                    string areaStr =
+                        totalArea
+                            .ToString("F2")
+                            .Replace(',', '.');
+
+
+                    // ----------------------------------------------------
+                    // В CSV выводим не имя типоразмера,
+                    // а название материала
+                    // ----------------------------------------------------
+
+                    string wallFunction =
+                        group.First().WallFunction;
+
+
+                    string orientation =
+                        group.Key.Orientation;
+
+
+                    List<string> wallRow =
+                        new List<string>
+                        {
+                            "",
+                            roomLocStr,
+                            wallFunction,
+                            areaStr,
+                            orientation
+                        };
+
+
                     rows.Add(wallRow);
 
-                    // Двери и окна — только один раз на каждую ориентацию
-                    if (!wall.WallType.Name.Contains("Цоколь") &&
-                        !usedOrientations.Contains(wallOrientation))
-                    {
-                        usedOrientations.Add(wallOrientation);
 
-                        List<string> doorRow = GetDoorsWindowsRow(
-                            doc, doors, wallOrientation, roomWall, roomLocStr, "Дверь");
+                    // ====================================================
+                    // ДВЕРИ И ОКНА
+                    //
+                    // Обрабатываем только один раз для каждой ориентации.
+                    // ====================================================
+
+                    if (wallFunction != "Цоколь" &&
+                        !usedOrientations.Contains(
+                            orientation))
+                    {
+                        usedOrientations.Add(
+                            orientation);
+
+
+                        // ------------------------------------------------
+                        // Двери
+                        // ------------------------------------------------
+
+                        List<string> doorRow =
+                            GetDoorsWindowsRow(
+                                doc,
+                                doors,
+                                orientation,
+                                roomWall,
+                                roomLocStr,
+                                "Дверь");
+
+
                         if (doorRow != null)
                             rows.Add(doorRow);
 
-                        List<string> windowsRow = GetDoorsWindowsRow(
-                            doc, windows, wallOrientation, roomWall, roomLocStr, "Окна/Остекление");
+
+                        // ------------------------------------------------
+                        // Окна
+                        // ------------------------------------------------
+
+                        List<string> windowsRow =
+                            GetDoorsWindowsRow(
+                                doc,
+                                windows,
+                                orientation,
+                                roomWall,
+                                roomLocStr,
+                                "Окна/Остекление");
+
+
                         if (windowsRow != null)
                             rows.Add(windowsRow);
                     }
                 }
             }
 
-            // Экспорт
-            new CsvExporter().Export(dlg.FileName, headers, rows);
-            TaskDialog.Show("Готово",
-                $"Данные успешно сохранены в файл {dlg.FileName}");
+
+            // ============================================================
+            // ЭКСПОРТ
+            // ============================================================
+
+            new CsvExporter().Export(
+                dlg.FileName,
+                headers,
+                rows);
+
+
+            TaskDialog.Show(
+                "Готово",
+                $"Данные успешно сохранены в файл:\n{dlg.FileName}");
+
 
             return Result.Succeeded;
         }
 
-        public List<string> GetDoorsWindowsRow(Document doc,List<Element> elems, string wallOrientation, string roomWall, string roomLocStr, string name)
+
+        // ================================================================
+        // ОПРЕДЕЛЕНИЕ МАТЕРИАЛА СТЕНЫ
+        // ================================================================
+
+        private string GetWallFunction(
+            Wall wall)
+        {
+            if (wall == null)
+                return null;
+
+
+            WallType wallType =
+                wall.WallType;
+
+
+            if (wallType == null)
+                return null;
+
+
+            string typeName =
+                wallType.Name ?? "";
+
+
+            if (typeName.Contains("Цоколь"))
+                return "Цоколь";
+
+
+            if (typeName.Contains("Сэндвич"))
+                return "Сэндвич-панель";
+
+
+            return null;
+        }
+
+
+        // ================================================================
+        // НОРМАЛИЗАЦИЯ ОРИЕНТАЦИИ
+        // ================================================================
+
+        private string NormalizeOrientation(
+            string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "-";
+
+
+            return value
+                .Trim()
+                .ToUpperInvariant();
+        }
+
+
+        // ================================================================
+        // ДВЕРИ / ОКНА
+        // ================================================================
+
+        public List<string> GetDoorsWindowsRow(
+            Document doc,
+            List<Element> elems,
+            string wallOrientation,
+            string roomWall,
+            string roomLocStr,
+            string name)
         {
             double area = 0;
 
+
             foreach (Element elem in elems)
             {
-                FamilyInstance faminst = elem as FamilyInstance;
+                FamilyInstance faminst =
+                    elem as FamilyInstance;
 
-                // Проверка параметров
-                Parameter orientParam = faminst.LookupParameter("INP_Ориентация по сторонам света");
-                Parameter roomParam = faminst.LookupParameter("Помещение Имя");
-                
 
-                if (orientParam == null || roomParam == null)
+                if (faminst == null)
                     continue;
 
-                Parameter areaParam = faminst.LookupParameter("ADSK_Площадь проемов");
 
-                if(areaParam == null)
+                // --------------------------------------------------------
+                // Параметр ориентации
+                // --------------------------------------------------------
+
+                Parameter orientParam =
+                    faminst.LookupParameter(
+                        "INP_Ориентация по сторонам света");
+
+
+                // --------------------------------------------------------
+                // Параметр помещения
+                // --------------------------------------------------------
+
+                Parameter roomParam =
+                    faminst.LookupParameter(
+                        "Помещение Имя");
+
+
+                if (orientParam == null ||
+                    roomParam == null)
                 {
-                    ElementType type = doc.GetElement(faminst.GetTypeId()) as ElementType;
-                    areaParam = type.LookupParameter("ADSK_Площадь проемов");
+                    continue;
                 }
-                    
 
-                string elemOrientation = orientParam.AsString();
-                string roomElem = roomParam.AsString();
 
-                if (roomWall != roomElem || wallOrientation != elemOrientation)
+                // --------------------------------------------------------
+                // Площадь проема
+                // --------------------------------------------------------
+
+                Parameter areaParam =
+                    faminst.LookupParameter(
+                        "ADSK_Площадь проемов");
+
+
+                // Если параметра нет у экземпляра,
+                // ищем у типоразмера.
+                if (areaParam == null)
+                {
+                    ElementType type =
+                        doc.GetElement(
+                            faminst.GetTypeId())
+                        as ElementType;
+
+
+                    if (type != null)
+                    {
+                        areaParam =
+                            type.LookupParameter(
+                                "ADSK_Площадь проемов");
+                    }
+                }
+
+
+                if (areaParam == null)
                     continue;
 
-                area += UnitUtils.ConvertFromInternalUnits(areaParam.AsDouble(), UnitTypeId.SquareMeters);
+
+                // --------------------------------------------------------
+                // Значения
+                // --------------------------------------------------------
+
+                string elemOrientation =
+                    NormalizeOrientation(
+                        orientParam.AsString());
+
+
+                string roomElem =
+                    roomParam.AsString();
+
+
+                if (roomWall != roomElem ||
+                    wallOrientation != elemOrientation)
+                {
+                    continue;
+                }
+
+
+                if (areaParam.StorageType !=
+                    StorageType.Double)
+                {
+                    continue;
+                }
+
+
+                area +=
+                    UnitUtils.ConvertFromInternalUnits(
+                        areaParam.AsDouble(),
+                        UnitTypeId.SquareMeters);
             }
-            if (area == 0)
+
+
+            if (area <= 0)
                 return null;
 
-            string areaStr = area.ToString("F2").Replace(',', '.');
-            
 
-            return new List<string> { "", roomLocStr, name, areaStr, wallOrientation };
+            string areaStr =
+                area
+                    .ToString("F2")
+                    .Replace(',', '.');
+
+
+            return new List<string>
+            {
+                "",
+                roomLocStr,
+                name,
+                areaStr,
+                wallOrientation
+            };
         }
 
-        public class IntArrayComparer : IComparer<int[]>
+
+        // ================================================================
+        // СРАВНЕНИЕ НОМЕРОВ ПОМЕЩЕНИЙ
+        // ================================================================
+
+        public class IntArrayComparer :
+            IComparer<int[]>
         {
-            public int Compare(int[] x, int[] y)
+            public int Compare(
+                int[] x,
+                int[] y)
             {
-                int len = Math.Max(x.Length, y.Length);
+                int len =
+                    Math.Max(
+                        x.Length,
+                        y.Length);
+
+
                 for (int i = 0; i < len; i++)
                 {
-                    int a = i < x.Length ? x[i] : 0;
-                    int b = i < y.Length ? y[i] : 0;
-                    int cmp = a.CompareTo(b);
+                    int a =
+                        i < x.Length
+                            ? x[i]
+                            : 0;
+
+
+                    int b =
+                        i < y.Length
+                            ? y[i]
+                            : 0;
+
+
+                    int cmp =
+                        a.CompareTo(b);
+
+
                     if (cmp != 0)
                         return cmp;
                 }
+
+
                 return 0;
             }
         }
-
     }
 }

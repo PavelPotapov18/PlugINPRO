@@ -117,7 +117,7 @@ namespace PlugINPRO.Commands.AR
                 t.Commit();
                 TaskDialog.Show(
                     "Готово",
-                    $"Создано полов: {created}");
+                    $"Создано потолков: {created}");
             }
 
             return Result.Succeeded;

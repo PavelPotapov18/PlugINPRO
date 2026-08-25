@@ -46,7 +46,7 @@ namespace PlugINPRO.Services.AR
 
             if (loops == null || loops.Count == 0)
                 return null;
-            TaskDialog.Show("Loops", loops.Count.ToString());
+            
 
             if (doorMode == DoorOffsetMode.None)
             {
